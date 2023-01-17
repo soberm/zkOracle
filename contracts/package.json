@@ -1,0 +1,25 @@
+{
+  "name": "contracts",
+  "version": "1.0.0",
+  "description": "",
+  "scripts": {
+    "compile": "npx hardhat compile --force",
+    "coverage": "npx hardhat coverage",
+    "test": "npx hardhat test",
+    "lint-fix": "npm run lint-sol-fix && npm run lint-ts-fix && npm run lint-json-fix",
+    "lint-json-fix": "prettier --write \"./[a-zA-Z0-9.]+(?!-lock).json\"",
+    "lint-ts-fix": "prettier --write \"./**/*.ts\"",
+    "lint-sol-fix": "prettier --write \"contracts/**/*.sol\""
+  },
+  "author": "Michael Sober",
+  "license": "MIT",
+  "devDependencies": {
+    "@nomicfoundation/hardhat-toolbox": "^2.0.1",
+    "hardhat": "^2.12.6",
+    "hardhat-abi-exporter": "^2.10.1",
+    "prettier": "^2.8.3",
+    "prettier-plugin-solidity": "^1.1.1",
+    "solhint": "^3.3.7",
+    "solhint-plugin-prettier": "^0.0.5"
+  }
+}
