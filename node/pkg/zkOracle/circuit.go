@@ -2,7 +2,7 @@ package zkOracle
 
 import (
 	"fmt"
-	twisteded "github.com/consensys/gnark-crypto/ecc/twistededwards"
+	edwards "github.com/consensys/gnark-crypto/ecc/twistededwards"
 	"github.com/consensys/gnark/frontend"
 	"github.com/consensys/gnark/std/accumulator/merkle"
 	"github.com/consensys/gnark/std/algebra/twistededwards"
@@ -17,14 +17,19 @@ const (
 )
 
 type Circuit struct {
-	//Aggregator AggregatorConstraints
-	Root      frontend.Variable `gnark:",public"`
-	BlockHash frontend.Variable `gnark:",public"`
-	Votes     [nbAccounts]VoteConstraints
+	Aggregator AggregatorConstraints
+	Root       frontend.Variable `gnark:",public"`
+	BlockHash  frontend.Variable `gnark:",public"`
+	//Seed      twistededwards.Point `gnark:",public"`
+	//Epoch frontend.Variable `gnark:",public"`
+	Votes [nbAccounts]VoteConstraints
 }
 
 type AggregatorConstraints struct {
-	PublicKey eddsa.PublicKey
+	//	PublicKey         eddsa.PublicKey
+	SecretKey frontend.Variable
+	//	MerkleProof       [depth]frontend.Variable
+	//	MerkleProofHelper [depth - 1]frontend.Variable
 }
 
 type VoteConstraints struct {
@@ -36,10 +41,12 @@ type VoteConstraints struct {
 }
 
 func (c *Circuit) Define(api frontend.API) error {
-	curve, err := twistededwards.NewEdCurve(api, twisteded.BN254)
+	curve, err := twistededwards.NewEdCurve(api, edwards.BN254)
 	if err != nil {
 		return fmt.Errorf("edwards curve: %w", err)
 	}
+
+	checkOwnership(api, curve, c.Aggregator.SecretKey, c.Votes[0].PublicKey)
 
 	count := frontend.Variable(0)
 	for _, vote := range c.Votes {
