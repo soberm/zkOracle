@@ -17,19 +17,18 @@ const (
 )
 
 type Circuit struct {
-	Aggregator AggregatorConstraints
 	Root       frontend.Variable `gnark:",public"`
 	BlockHash  frontend.Variable `gnark:",public"`
-	//Seed      twistededwards.Point `gnark:",public"`
-	//Epoch frontend.Variable `gnark:",public"`
-	Votes [nbAccounts]VoteConstraints
+	Aggregator AggregatorConstraints
+	Votes      [nbAccounts]VoteConstraints
 }
 
 type AggregatorConstraints struct {
-	//	PublicKey         eddsa.PublicKey
-	SecretKey frontend.Variable
-	//	MerkleProof       [depth]frontend.Variable
-	//	MerkleProofHelper [depth - 1]frontend.Variable
+	Index             frontend.Variable    `gnark:",public"`
+	Seed              twistededwards.Point `gnark:",public"`
+	SecretKey         frontend.Variable
+	MerkleProof       [depth]frontend.Variable
+	MerkleProofHelper [depth - 1]frontend.Variable
 }
 
 type VoteConstraints struct {
@@ -46,14 +45,36 @@ func (c *Circuit) Define(api frontend.API) error {
 		return fmt.Errorf("edwards curve: %w", err)
 	}
 
+	hFunc, err := mimc.NewMiMC(api)
+	if err != nil {
+		return fmt.Errorf("mimc: %w", err)
+	}
+
+	//Compute next Seed
+	c.Aggregator.Seed = curve.ScalarMul(c.Aggregator.Seed, c.Aggregator.SecretKey)
+
+	//TODO: Verify that index in merkle proof matches the provided aggregator index
+	api.AssertIsEqual(c.Aggregator.Index, 0)
+	
+	// Check aggregator included
+	merkle.VerifyProof(api, hFunc, c.Root, c.Aggregator.MerkleProof[:], c.Aggregator.MerkleProofHelper[:])
+	hFunc.Reset()
+
+	// Computer aggregator public key
+	base := curve.Params().Base
+	g := twistededwards.Point{X: base[0], Y: base[1]}
+	pubKey := curve.ScalarMul(g, c.Aggregator.SecretKey)
+
+	// Verify that the public key from the Merkle proof matches the computed public key
+	hFunc.Write(pubKey.X)
+	hFunc.Write(pubKey.Y)
+	api.AssertIsEqual(hFunc.Sum(), c.Aggregator.MerkleProof[0])
+
 	checkOwnership(api, curve, c.Aggregator.SecretKey, c.Votes[0].PublicKey)
 
 	count := frontend.Variable(0)
 	for _, vote := range c.Votes {
-		hFunc, err := mimc.NewMiMC(api)
-		if err != nil {
-			return fmt.Errorf("mimc: %w", err)
-		}
+		hFunc.Reset()
 
 		hFunc.Write(vote.PublicKey.A.X)
 		hFunc.Write(vote.PublicKey.A.Y)
