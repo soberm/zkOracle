@@ -20,7 +20,7 @@ type Circuit struct {
 	Root       frontend.Variable `gnark:",public"`
 	BlockHash  frontend.Variable `gnark:",public"`
 	Aggregator AggregatorConstraints
-	Votes      [nbAccounts]VoteConstraints
+	Validators [nbAccounts]ValidatorConstraints
 }
 
 type AggregatorConstraints struct {
@@ -31,7 +31,7 @@ type AggregatorConstraints struct {
 	MerkleProofHelper [depth - 1]frontend.Variable
 }
 
-type VoteConstraints struct {
+type ValidatorConstraints struct {
 	PublicKey         eddsa.PublicKey
 	MerkleProof       [depth]frontend.Variable
 	MerkleProofHelper [depth - 1]frontend.Variable
@@ -55,7 +55,7 @@ func (c *Circuit) Define(api frontend.API) error {
 
 	//TODO: Verify that index in merkle proof matches the provided aggregator index
 	api.AssertIsEqual(c.Aggregator.Index, 0)
-	
+
 	// Check aggregator included
 	merkle.VerifyProof(api, hFunc, c.Root, c.Aggregator.MerkleProof[:], c.Aggregator.MerkleProofHelper[:])
 	hFunc.Reset()
@@ -70,10 +70,10 @@ func (c *Circuit) Define(api frontend.API) error {
 	hFunc.Write(pubKey.Y)
 	api.AssertIsEqual(hFunc.Sum(), c.Aggregator.MerkleProof[0])
 
-	checkOwnership(api, curve, c.Aggregator.SecretKey, c.Votes[0].PublicKey)
+	checkOwnership(api, curve, c.Aggregator.SecretKey, c.Validators[0].PublicKey)
 
 	count := frontend.Variable(0)
-	for _, vote := range c.Votes {
+	for _, vote := range c.Validators {
 		hFunc.Reset()
 
 		hFunc.Write(vote.PublicKey.A.X)
