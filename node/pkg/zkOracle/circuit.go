@@ -32,6 +32,7 @@ type AggregatorConstraints struct {
 }
 
 type ValidatorConstraints struct {
+	Index             frontend.Variable
 	PublicKey         eddsa.PublicKey
 	MerkleProof       [depth]frontend.Variable
 	MerkleProofHelper [depth - 1]frontend.Variable
@@ -53,7 +54,7 @@ func (c *Circuit) Define(api frontend.API) error {
 	//Compute next Seed
 	c.Aggregator.Seed = curve.ScalarMul(c.Aggregator.Seed, c.Aggregator.SecretKey)
 
-	//TODO: Verify that index in merkle proof matches the provided aggregator index
+	//TODO: Verify that Index in merkle proof matches the provided aggregator Index
 	api.AssertIsEqual(c.Aggregator.Index, 0)
 
 	// Check aggregator included
@@ -66,6 +67,7 @@ func (c *Circuit) Define(api frontend.API) error {
 	pubKey := curve.ScalarMul(g, c.Aggregator.SecretKey)
 
 	// Verify that the public key from the Merkle proof matches the computed public key
+	hFunc.Write(c.Aggregator.Index)
 	hFunc.Write(pubKey.X)
 	hFunc.Write(pubKey.Y)
 	api.AssertIsEqual(hFunc.Sum(), c.Aggregator.MerkleProof[0])
@@ -76,6 +78,7 @@ func (c *Circuit) Define(api frontend.API) error {
 	for _, vote := range c.Validators {
 		hFunc.Reset()
 
+		hFunc.Write(vote.Index)
 		hFunc.Write(vote.PublicKey.A.X)
 		hFunc.Write(vote.PublicKey.A.Y)
 		api.AssertIsEqual(hFunc.Sum(), vote.MerkleProof[0])
