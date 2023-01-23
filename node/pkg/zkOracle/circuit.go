@@ -54,22 +54,21 @@ func (c *Circuit) Define(api frontend.API) error {
 	//Compute next Seed
 	c.Aggregator.Seed = curve.ScalarMul(c.Aggregator.Seed, c.Aggregator.SecretKey)
 
-	// Check aggregator included
-	merkle.VerifyProof(api, hFunc, c.Root, c.Aggregator.MerkleProof[:], c.Aggregator.MerkleProofHelper[:])
-	hFunc.Reset()
-
 	// Compute aggregator public key
 	base := curve.Params().Base
 	g := twistededwards.Point{X: base[0], Y: base[1]}
 	pubKey := curve.ScalarMul(g, c.Aggregator.SecretKey)
+	curve.AssertIsOnCurve(pubKey)
 
-	// Verify that the public key from the Merkle proof matches the computed public key
+	// Verify that the public key from the Merkle proof matches the computed public key of the aggregator
 	hFunc.Write(c.Aggregator.Index)
 	hFunc.Write(pubKey.X)
 	hFunc.Write(pubKey.Y)
 	api.AssertIsEqual(hFunc.Sum(), c.Aggregator.MerkleProof[0])
+	hFunc.Reset()
 
-	checkOwnership(api, curve, c.Aggregator.SecretKey, c.Validators[0].PublicKey)
+	// Check aggregator included
+	merkle.VerifyProof(api, hFunc, c.Root, c.Aggregator.MerkleProof[:], c.Aggregator.MerkleProofHelper[:])
 
 	count := frontend.Variable(0)
 	for _, vote := range c.Validators {
