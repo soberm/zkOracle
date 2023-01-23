@@ -54,14 +54,11 @@ func (c *Circuit) Define(api frontend.API) error {
 	//Compute next Seed
 	c.Aggregator.Seed = curve.ScalarMul(c.Aggregator.Seed, c.Aggregator.SecretKey)
 
-	//TODO: Verify that Index in merkle proof matches the provided aggregator Index
-	api.AssertIsEqual(c.Aggregator.Index, 0)
-
 	// Check aggregator included
 	merkle.VerifyProof(api, hFunc, c.Root, c.Aggregator.MerkleProof[:], c.Aggregator.MerkleProofHelper[:])
 	hFunc.Reset()
 
-	// Computer aggregator public key
+	// Compute aggregator public key
 	base := curve.Params().Base
 	g := twistededwards.Point{X: base[0], Y: base[1]}
 	pubKey := curve.ScalarMul(g, c.Aggregator.SecretKey)
