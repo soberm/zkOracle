@@ -29,12 +29,21 @@ contract MerkleTree {
     }
 
     function hash(uint256[] memory data) public pure returns (uint256) {
-        return MiMC.Hash(data);
+        return MiMC.hash(data);
+    }
+
+    function hashLeftRight(
+        uint256 left,
+        uint256 right
+    ) private pure returns (uint256) {
+        uint[] memory input = new uint[](2);
+        input[0] = left;
+        input[1] = right;
+        return hash(input);
     }
 
     function insert(uint256 leaf) public {
         require(nextIndex != 2 ** levels, "tree is full");
-
         uint256 left;
         uint256 right;
         uint256 leafIndex = nextIndex;
@@ -50,10 +59,7 @@ contract MerkleTree {
                 left = filledSubtrees[i];
                 right = currentHash;
             }
-            uint[] memory input = new uint[](2);
-            input[0] = left;
-            input[1] = right;
-            currentHash = MiMC.Hash(input);
+            currentHash = hashLeftRight(left, right);
             currentIndex /= 2;
         }
 
@@ -63,12 +69,33 @@ contract MerkleTree {
         emit Inserted(leafIndex);
     }
 
+    function verify(
+        uint256[] memory path,
+        uint256[] memory helper
+    ) public view returns (bool) {
+        uint[] memory input = new uint[](1);
+        input[0] = path[0];
+        uint256 computedHash = hash(input);
+        for (uint256 i = 1; i < path.length; i++) {
+            if (helper[i - 1] == 1) {
+                computedHash = hashLeftRight(computedHash, path[i]);
+            } else {
+                computedHash = hashLeftRight(path[i], computedHash);
+            }
+        }
+        return computedHash == root;
+    }
+
     function getRoot() public view returns (uint256) {
         return root;
     }
 
     function getLevels() public view returns (uint256) {
         return levels;
+    }
+
+    function getNextLeafIndex() public view returns (uint256) {
+        return nextIndex;
     }
 
     function zeros(uint256 i) public pure returns (uint256) {
