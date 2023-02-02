@@ -35,7 +35,7 @@ contract MerkleTree {
     function hashLeftRight(
         uint256 left,
         uint256 right
-    ) private pure returns (uint256) {
+    ) public pure returns (uint256) {
         uint[] memory input = new uint[](2);
         input[0] = left;
         input[1] = right;
@@ -69,6 +69,17 @@ contract MerkleTree {
         emit Inserted(leafIndex);
     }
 
+    function update(
+        uint256 leaf,
+        uint256[] memory path,
+        uint256[] memory helper
+    ) public {
+        require(nextIndex == 2 ** levels, "tree not full");
+        require(verify(path, helper), "leaf to update not included");
+        path[0] = leaf;
+        root = computeRootFromPath(path, helper);
+    }
+
     function verify(
         uint256[] memory path,
         uint256[] memory helper
@@ -84,6 +95,23 @@ contract MerkleTree {
             }
         }
         return computedHash == root;
+    }
+
+    function computeRootFromPath(
+        uint256[] memory path,
+        uint256[] memory helper
+    ) public pure returns (uint256) {
+        uint[] memory input = new uint[](1);
+        input[0] = path[0];
+        uint256 computedHash = hash(input);
+        for (uint256 i = 1; i < path.length; i++) {
+            if (helper[i - 1] == 1) {
+                computedHash = hashLeftRight(computedHash, path[i]);
+            } else {
+                computedHash = hashLeftRight(path[i], computedHash);
+            }
+        }
+        return computedHash;
     }
 
     function getRoot() public view returns (uint256) {

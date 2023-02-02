@@ -84,8 +84,12 @@ func State(accounts []*zkOracle.Account) ([]byte, error) {
 		hFunc.Reset()
 		_, _ = hFunc.Write(accounts[i].Serialize())
 		s := hFunc.Sum(nil)
+		/*		hFunc.Reset()
+				hFunc.Write(s)
+				fmt.Printf("State: %v\n", big.NewInt(0).SetBytes(hFunc.Sum(nil)))*/
 		copy(state[i*hFunc.Size():(i+1)*hFunc.Size()], s)
 	}
+
 	return state, nil
 }
 
@@ -107,6 +111,14 @@ func MerkleProofs(state []byte) (frontend.Variable, [nbAccounts][depth]frontend.
 		if !merkletree.VerifyProof(hFunc, root, proof, uint64(i), numLeaves) {
 			return merkleRoot, merkleProofs, merkleHelpers, errors.New("invalid merkle proof")
 		}
+
+		p := make([]*big.Int, len(proof))
+		for i, node := range proof {
+			p[i] = big.NewInt(0).SetBytes(node)
+		}
+		fmt.Printf("Proof: %v\n", p)
+		fmt.Printf("Helper: %v\n", proofHelper)
+		fmt.Printf("Root: %v\n", big.NewInt(0).SetBytes(root))
 
 		var path [depth]frontend.Variable
 		var helper [depth - 1]frontend.Variable
