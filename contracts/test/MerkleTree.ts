@@ -34,14 +34,9 @@ describe("MerkleTree", function () {
     return { merkleTree };
   }
 
-  it("insert", async function () {
-    const { merkleTree } = await loadFixture(deployFixture);
-    for (let i = 1; i < 5; i++) {
-      let tx = await merkleTree.insert(await merkleTree.hash([i]));
-      let receipt = await tx.wait();
-    }
-
-    console.log(await merkleTree.getRoot());
+  it("insert should compute correct root", async function () {
+    const { merkleTree } = await loadFixture(fullTreeFixture);
+    expect(await merkleTree.getRoot()).to.equal("14669474610586036795355717835678114088252099439454524063142345888814163114094")
   });
 
   it("update should update the root with given path", async function () {
@@ -67,6 +62,42 @@ describe("MerkleTree", function () {
     );
 
     expect(result).to.be.true;
+  });
+
+  it("update should revert if tree not full", async function () {
+    const { merkleTree } = await loadFixture(deployFixture);
+
+    let tx = merkleTree.update(
+        "5930779311236679553824249069471014709811380042820293899590311964685757495005",
+        [
+            "6205836767976675972003616131281122597329838876688673966264947687549471156130",
+            "6187350521517272486117148237635192271041670665937219625917563897233388432910",
+            "6584420187527354519485242243152059973161633040054605148949951423401777995392",
+        ],
+        [1, 1]
+    );
+
+    await expect(tx).to.be.revertedWith(
+        "tree not full"
+    );
+  });
+
+  it("update should revert if proof is invalid", async function () {
+    const { merkleTree } = await loadFixture(fullTreeFixture);
+
+    let tx = merkleTree.update(
+        "5930779311236679553824249069471014709811380042820293899590311964685757495005",
+        [
+          "6205836767976675972003616131281122597329838876688673966264947687549471156130",
+          "6287350521517272486117148237635192271041670665937219625917563897233388432910",
+          "6584420187527354519485242243152059973161633040054605148949951423401777995392",
+        ],
+        [1, 1]
+    );
+
+    expect(tx).to.be.revertedWith(
+        "leaf to update not included"
+    );
   });
 
   it("verify should return true if data is included", async function () {
