@@ -5,11 +5,12 @@ import (
 	"math/big"
 )
 
-const accountSize = 96
+const accountSize = 128
 
 type Account struct {
 	Index     *big.Int
 	SecretKey *eddsa.PrivateKey
+	Balance   *big.Int
 }
 
 func (a *Account) Serialize() []byte {
@@ -24,6 +25,8 @@ func (a *Account) Serialize() []byte {
 	copy(b[32:], buf[:])
 	buf = publicKey.A.Y.Bytes()
 	copy(b[64:], buf[:])
+
+	copy(b[96:], padOrTrim(a.Balance.Bytes(), 32))
 
 	return b[:]
 }

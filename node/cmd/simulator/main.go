@@ -38,6 +38,7 @@ func GenerateAccounts() ([]*zkOracle.Account, error) {
 		accounts[i] = &zkOracle.Account{
 			big.NewInt(int64(i)),
 			sk,
+			big.NewInt(0),
 		}
 	}
 	return accounts, nil
@@ -65,6 +66,7 @@ func GenerateVotes(accounts []*zkOracle.Account, proofs [nbAccounts][depth]front
 		votes[i] = zkOracle.ValidatorConstraints{
 			Index:             i,
 			PublicKey:         pub,
+			Balance:           big.NewInt(0),
 			MerkleProof:       proofs[i],
 			MerkleProofHelper: helper[i],
 			Signature:         sig,
@@ -178,6 +180,7 @@ func main() {
 		Index:             0,
 		Seed:              twistededwards.Point{X: 0, Y: 1},
 		SecretKey:         accounts[0].SecretKey.Bytes()[fpSize : 2*fpSize],
+		Balance:           big.NewInt(0),
 		MerkleProof:       merkleProofs[0],
 		MerkleProofHelper: merkleHelpers[0],
 	}

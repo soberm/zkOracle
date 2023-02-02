@@ -27,6 +27,7 @@ type AggregatorConstraints struct {
 	Index             frontend.Variable    `gnark:",public"`
 	Seed              twistededwards.Point `gnark:",public"`
 	SecretKey         frontend.Variable
+	Balance           frontend.Variable
 	MerkleProof       [depth]frontend.Variable
 	MerkleProofHelper [depth - 1]frontend.Variable
 }
@@ -34,6 +35,7 @@ type AggregatorConstraints struct {
 type ValidatorConstraints struct {
 	Index             frontend.Variable
 	PublicKey         eddsa.PublicKey
+	Balance           frontend.Variable
 	MerkleProof       [depth]frontend.Variable
 	MerkleProofHelper [depth - 1]frontend.Variable
 	Signature         eddsa.Signature
@@ -64,6 +66,7 @@ func (c *Circuit) Define(api frontend.API) error {
 	hFunc.Write(c.Aggregator.Index)
 	hFunc.Write(pubKey.X)
 	hFunc.Write(pubKey.Y)
+	hFunc.Write(c.Aggregator.Balance)
 	api.AssertIsEqual(hFunc.Sum(), c.Aggregator.MerkleProof[0])
 	hFunc.Reset()
 
@@ -71,23 +74,24 @@ func (c *Circuit) Define(api frontend.API) error {
 	merkle.VerifyProof(api, hFunc, c.Root, c.Aggregator.MerkleProof[:], c.Aggregator.MerkleProofHelper[:])
 
 	count := frontend.Variable(0)
-	for _, vote := range c.Validators {
+	for _, validator := range c.Validators {
 		hFunc.Reset()
 
-		hFunc.Write(vote.Index)
-		hFunc.Write(vote.PublicKey.A.X)
-		hFunc.Write(vote.PublicKey.A.Y)
-		api.AssertIsEqual(hFunc.Sum(), vote.MerkleProof[0])
+		hFunc.Write(validator.Index)
+		hFunc.Write(validator.PublicKey.A.X)
+		hFunc.Write(validator.PublicKey.A.Y)
+		hFunc.Write(validator.Balance)
+		api.AssertIsEqual(hFunc.Sum(), validator.MerkleProof[0])
 
 		hFunc.Reset()
 
-		merkle.VerifyProof(api, hFunc, c.Root, vote.MerkleProof[:], vote.MerkleProofHelper[:])
+		merkle.VerifyProof(api, hFunc, c.Root, validator.MerkleProof[:], validator.MerkleProofHelper[:])
 
-		if err := eddsa.Verify(curve, vote.Signature, vote.BlockHash, vote.PublicKey, &hFunc); err != nil {
+		if err := eddsa.Verify(curve, validator.Signature, validator.BlockHash, validator.PublicKey, &hFunc); err != nil {
 			return fmt.Errorf("verify eddsa: %w", err)
 		}
 
-		count = api.Select(api.Cmp(c.BlockHash, vote.BlockHash), count, api.Add(count, 1))
+		count = api.Select(api.Cmp(c.BlockHash, validator.BlockHash), count, api.Add(count, 1))
 	}
 
 	api.AssertIsEqual(api.Cmp(count, threshold), 1)
