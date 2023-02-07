@@ -27,6 +27,7 @@ contract ZKOracle {
     event Registered(address indexed sender);
     event Replaced(address indexed sender, address indexed replaced);
     event Exiting(address indexed sender);
+    event Withdrawn(address indexed sender);
 
     constructor(address merkleTreeAddress) {
         merkleTree = MerkleTree(merkleTreeAddress);
@@ -110,6 +111,7 @@ contract ZKOracle {
             0
         );
         merkleTree.update(hashAccount(empty), path, helper);
+        emit Withdrawn(msg.sender);
     }
 
     function hashAccount(Account memory account) public view returns (uint256) {

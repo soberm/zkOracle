@@ -1,5 +1,9 @@
 import { ethers } from "hardhat";
-import { loadFixture, time } from "@nomicfoundation/hardhat-network-helpers";
+import {
+  loadFixture,
+  time,
+  mine,
+} from "@nomicfoundation/hardhat-network-helpers";
 import { expect } from "chai";
 
 describe("ZKOracle", function () {
@@ -284,16 +288,56 @@ describe("ZKOracle", function () {
 
   it("withdraw should revert when time not passed", async function () {
     const { zkOracle } = await loadFixture(deployFixture);
-    expect(zkOracle.withdraw(null, [], [])).to.be.revertedWith(
-      "time not passed"
+    let tx = zkOracle.withdraw(
+      {
+        index: 0,
+        pubKeyX:
+          "7794373982259243195870592346785104092432649697832080133780782253104282782817",
+        pubKeyY:
+          "16580021058669382711579094818964719809751621462486576197985799831318116474539",
+        balance: ethers.utils.parseEther("0"),
+      },
+      [],
+      []
     );
+    await expect(tx).to.be.revertedWith("time not passed");
   });
 
-  it("withdraw should revert when index wrong", async function () {
-    const { zkOracle } = await loadFixture(deployFixture);
-    const account = { index: 1 };
-    expect(zkOracle.withdraw(account, [], [])).to.be.revertedWith(
-      "wrong index"
+  it("withdraw should revert if leaf does not match account", async function () {
+    const { zkOracle, owner, addr1 } = await loadFixture(fullTreeFixture);
+    let account = {
+      index: 0,
+      pubKeyX:
+        "7794373982259243195870592346785104092432649697832080133780782253104282782817",
+      pubKeyY:
+        "16580021058669382711579094818964719809751621462486576197985799831318116474539",
+      balance: ethers.utils.parseEther("0"),
+    };
+
+    await zkOracle.exit(
+      account,
+      [
+        "6205836767976675972003616131281122597329838876688673966264947687549471156130",
+        "6187350521517272486117148237635192271041670665937219625917563897233388432910",
+        "6584420187527354519485242243152059973161633040054605148949951423401777995392",
+      ],
+      [1, 1]
     );
+    let exitDelay = await zkOracle.exitDelay();
+    exitDelay.add(1);
+
+    await mine(exitDelay);
+
+    account.index = 1;
+    let tx = zkOracle.withdraw(
+      account,
+      [
+        "6205836767976675972003616131281122597329838876688673966264947687549471156130",
+        "6187350521517272486117148237635192271041670665937219625917563897233388432910",
+        "6584420187527354519485242243152059973161633040054605148949951423401777995392",
+      ],
+      [1, 1]
+    );
+    await expect(tx).to.be.revertedWith("leaf does not match account");
   });
 });
