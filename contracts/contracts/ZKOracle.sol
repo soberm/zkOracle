@@ -9,8 +9,7 @@ contract ZKOracle {
 
     struct Account {
         uint256 index;
-        uint256 pubKeyX;
-        uint256 pubKeyY;
+        PublicKey pubKey;
         uint256 balance;
     }
 
@@ -36,8 +35,7 @@ contract ZKOracle {
     function register(PublicKey memory publicKey) public payable {
         Account memory account = Account(
             merkleTree.getNextLeafIndex(),
-            publicKey.x,
-            publicKey.y,
+            publicKey,
             msg.value
         );
         accounts[account.index] = msg.sender;
@@ -67,8 +65,7 @@ contract ZKOracle {
 
         Account memory replaced = Account(
             toReplace.index,
-            publicKey.x,
-            publicKey.y,
+            publicKey,
             msg.value
         );
 
@@ -104,12 +101,7 @@ contract ZKOracle {
         payable(msg.sender).transfer(account.balance);
         delete accounts[account.index];
 
-        Account memory empty = Account(
-            account.index,
-            account.pubKeyX,
-            account.pubKeyY,
-            0
-        );
+        Account memory empty = Account(account.index, account.pubKey, 0);
         merkleTree.update(hashAccount(empty), path, helper);
         emit Withdrawn(msg.sender);
     }
@@ -117,8 +109,8 @@ contract ZKOracle {
     function hashAccount(Account memory account) public view returns (uint256) {
         uint[] memory input = new uint[](4);
         input[0] = account.index;
-        input[1] = account.pubKeyX;
-        input[2] = account.pubKeyY;
+        input[1] = account.pubKey.x;
+        input[2] = account.pubKey.y;
         input[3] = account.balance;
         return merkleTree.hash(input);
     }
