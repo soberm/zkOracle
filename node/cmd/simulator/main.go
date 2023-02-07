@@ -35,6 +35,11 @@ func GenerateAccounts() ([]*zkOracle.Account, error) {
 		if err != nil {
 			return nil, fmt.Errorf("generate key: %w", err)
 		}
+		x := sk.PublicKey.A.X.Bytes()
+		y := sk.PublicKey.A.Y.Bytes()
+		fmt.Printf("Pub-X: %v\n", big.NewInt(0).SetBytes(x[:]))
+		fmt.Printf("Pub-Y: %v\n", big.NewInt(0).SetBytes(y[:]))
+
 		accounts[i] = &zkOracle.Account{
 			big.NewInt(int64(i)),
 			sk,

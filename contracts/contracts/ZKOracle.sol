@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.9;
 
-// import "hardhat/console.sol";
+import "hardhat/console.sol";
 import "./MerkleTree.sol";
 
 contract ZKOracle {
@@ -14,36 +14,45 @@ contract ZKOracle {
         uint256 balance;
     }
 
+    struct PublicKey {
+        uint256 x;
+        uint256 y;
+    }
+
     uint256 public exitDelay = 604800;
 
     mapping(uint256 => address) accounts;
     mapping(address => uint256) exitTimes;
 
     event Registered(address indexed sender);
+    event Replaced(address indexed sender, address indexed replaced);
     event Exiting(address indexed sender);
 
     constructor(address merkleTreeAddress) {
         merkleTree = MerkleTree(merkleTreeAddress);
     }
 
-    function register(uint256 pubKeyX, uint256 pubKeyY) public payable {
+    function register(PublicKey memory publicKey) public payable {
         Account memory account = Account(
             merkleTree.getNextLeafIndex(),
-            pubKeyX,
-            pubKeyY,
+            publicKey.x,
+            publicKey.y,
             msg.value
         );
         accounts[account.index] = msg.sender;
         uint256 accountHash = hashAccount(account);
 
-        merkleTree.insert(accountHash);
+        uint[] memory input = new uint[](1);
+        input[0] = accountHash;
+        uint256 h = merkleTree.hash(input);
+
+        merkleTree.insert(h);
 
         emit Registered(msg.sender);
     }
 
     function replace(
-        uint256 pubKeyX,
-        uint256 pubKeyY,
+        PublicKey memory publicKey,
         Account memory toReplace,
         uint256[] memory path,
         uint256[] memory helper
@@ -55,11 +64,28 @@ contract ZKOracle {
             "leaf does not match account"
         );
 
-        merkleTree.update(0, path, helper);
+        Account memory replaced = Account(
+            toReplace.index,
+            publicKey.x,
+            publicKey.y,
+            msg.value
+        );
+
+        merkleTree.update(hashAccount(replaced), path, helper);
         payable(accounts[toReplace.index]).transfer(toReplace.balance);
+        emit Replaced(msg.sender, accounts[toReplace.index]);
+        accounts[toReplace.index] = msg.sender;
     }
 
-    function exit() public {
+    function exit(
+        Account memory account,
+        uint256[] memory path,
+        uint256[] memory helper
+    ) public {
+        require(accounts[account.index] == msg.sender, "wrong sender address");
+        require(path[0] == hashAccount(account), "leaf does not match account");
+        require(merkleTree.verify(path, helper), "account not included");
+
         exitTimes[msg.sender] = block.timestamp + exitDelay;
         emit Exiting(msg.sender);
     }
@@ -70,14 +96,20 @@ contract ZKOracle {
         uint256[] memory helper
     ) public {
         require(block.number < exitTimes[msg.sender], "time not passed");
-        require(accounts[account.index] == msg.sender, "wrong index");
-        require(merkleTree.verify(path, helper), "account not included");
+        require(accounts[account.index] == msg.sender, "wrong sender address");
         require(path[0] == hashAccount(account), "leaf does not match account");
+        require(merkleTree.verify(path, helper), "account not included");
 
         payable(msg.sender).transfer(account.balance);
         delete accounts[account.index];
-        //TODO: Set the accounts balance to 0
-        //TODO: Verify Merkle proof and recompute root
+
+        Account memory empty = Account(
+            account.index,
+            account.pubKeyX,
+            account.pubKeyY,
+            0
+        );
+        merkleTree.update(hashAccount(empty), path, helper);
     }
 
     function hashAccount(Account memory account) public view returns (uint256) {
