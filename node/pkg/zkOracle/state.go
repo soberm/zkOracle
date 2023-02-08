@@ -38,6 +38,21 @@ func NewState(hFunc hash.Hash, accounts []*Account) (*State, error) {
 	}, nil
 }
 
+func (s *State) UpdateState(vote *Vote) error {
+	account, err := s.ReadAccount(vote.index)
+	if err != nil {
+		return fmt.Errorf("read account: %w", err)
+	}
+	fmt.Printf("%v", account)
+	return nil
+}
+
+func (s *State) ReadAccount(i uint64) (Account, error) {
+	var res Account
+	res.Deserialize(s.data[int(i)*accountSize : int(i)*accountSize+accountSize])
+	return res, nil
+}
+
 func (s *State) Data() []byte {
 	return s.data
 }

@@ -9,7 +9,7 @@ const accountSize = 128
 
 type Account struct {
 	Index     *big.Int
-	SecretKey *eddsa.PrivateKey
+	PublicKey *eddsa.PublicKey
 	Balance   *big.Int
 }
 
@@ -19,15 +19,28 @@ func (a *Account) Serialize() []byte {
 
 	copy(b[:32], padOrTrim(a.Index.Bytes(), 32))
 
-	publicKey := a.SecretKey.PublicKey
-
 	var buf [32]byte
-	buf = publicKey.A.X.Bytes()
+	buf = a.PublicKey.A.X.Bytes()
 	copy(b[32:], buf[:])
-	buf = publicKey.A.Y.Bytes()
+	buf = a.PublicKey.A.Y.Bytes()
 	copy(b[64:], buf[:])
 
 	copy(b[96:], padOrTrim(a.Balance.Bytes(), 32))
 
 	return b[:]
+}
+
+func (a *Account) Deserialize(data []byte) {
+
+	a.Index = big.NewInt(0).SetBytes(data[:32])
+
+	a.PublicKey = new(eddsa.PublicKey)
+
+	a.PublicKey.A.X.SetZero()
+	a.PublicKey.A.Y.SetOne()
+
+	a.PublicKey.A.X.SetBytes(data[32:64])
+	a.PublicKey.A.Y.SetBytes(data[64:96])
+
+	a.Balance = big.NewInt(0).SetBytes(data[96:accountSize])
 }

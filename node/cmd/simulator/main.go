@@ -27,13 +27,14 @@ const (
 	depth      = 3
 )
 
-func GenerateAccounts() ([]*zkOracle.Account, error) {
+func GenerateAccounts() ([]*eddsa.PrivateKey, []*zkOracle.Account, error) {
+	privateKeys := make([]*eddsa.PrivateKey, nbAccounts)
 	accounts := make([]*zkOracle.Account, nbAccounts)
 	for i := 0; i < nbAccounts; i++ {
 		r := rand.New(rand.NewSource(int64(i)))
 		sk, err := eddsa.GenerateKey(r)
 		if err != nil {
-			return nil, fmt.Errorf("generate key: %w", err)
+			return nil, nil, fmt.Errorf("generate key: %w", err)
 		}
 		x := sk.PublicKey.A.X.Bytes()
 		y := sk.PublicKey.A.Y.Bytes()
@@ -42,23 +43,24 @@ func GenerateAccounts() ([]*zkOracle.Account, error) {
 
 		accounts[i] = &zkOracle.Account{
 			big.NewInt(int64(i)),
-			sk,
+			&sk.PublicKey,
 			big.NewInt(0),
 		}
+		privateKeys[i] = sk
 	}
-	return accounts, nil
+	return privateKeys, accounts, nil
 }
 
-func GenerateVotes(accounts []*zkOracle.Account, proofs [nbAccounts][depth]frontend.Variable, helper [nbAccounts][depth - 1]frontend.Variable) ([nbAccounts]zkOracle.ValidatorConstraints, error) {
+func GenerateVotes(accounts []*eddsa.PrivateKey, proofs [nbAccounts][depth]frontend.Variable, helper [nbAccounts][depth - 1]frontend.Variable) ([nbAccounts]zkOracle.ValidatorConstraints, error) {
 	var votes [nbAccounts]zkOracle.ValidatorConstraints
 	for i, account := range accounts {
 		var pub eddsa2.PublicKey
 		var sig eddsa2.Signature
 		result := hexutils.HexToBytes("8a37bed7896a37e676fe5498e7fc14da08897b13147f7181190253c9841e09bb")
 
-		pub.Assign(ecc.BN254, account.SecretKey.PublicKey.Bytes())
+		pub.Assign(ecc.BN254, account.PublicKey.Bytes())
 
-		sigBin, err := account.SecretKey.Sign(result, mimc.NewMiMC())
+		sigBin, err := account.Sign(result, mimc.NewMiMC())
 		if err != nil {
 			return votes, fmt.Errorf("sign: %w", err)
 		}
@@ -124,7 +126,7 @@ func MerkleProofs(state []byte) (frontend.Variable, [nbAccounts][depth]frontend.
 
 func main() {
 
-	accounts, err := GenerateAccounts()
+	privateKeys, accounts, err := GenerateAccounts()
 	if err != nil {
 		fmt.Printf("%v", err)
 		return
@@ -142,7 +144,7 @@ func main() {
 		return
 	}
 
-	votes, err := GenerateVotes(accounts, merkleProofs, merkleHelpers)
+	votes, err := GenerateVotes(privateKeys, merkleProofs, merkleHelpers)
 	if err != nil {
 		fmt.Printf("%v", err)
 		return
@@ -176,7 +178,7 @@ func main() {
 	assignment.Aggregator = zkOracle.AggregatorConstraints{
 		Index:             0,
 		Seed:              twistededwards.Point{X: 0, Y: 1},
-		SecretKey:         accounts[0].SecretKey.Bytes()[fpSize : 2*fpSize],
+		SecretKey:         privateKeys[0].Bytes()[fpSize : 2*fpSize],
 		Balance:           big.NewInt(0),
 		MerkleProof:       merkleProofs[0],
 		MerkleProofHelper: merkleHelpers[0],
