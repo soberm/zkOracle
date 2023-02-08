@@ -78,22 +78,6 @@ func GenerateVotes(accounts []*zkOracle.Account, proofs [nbAccounts][depth]front
 	return votes, nil
 }
 
-func State(accounts []*zkOracle.Account) ([]byte, error) {
-	hFunc := mimc.NewMiMC()
-	state := make([]byte, hFunc.Size()*nbAccounts)
-	for i := 0; i < nbAccounts; i++ {
-		hFunc.Reset()
-		_, _ = hFunc.Write(accounts[i].Serialize())
-		s := hFunc.Sum(nil)
-		/*		hFunc.Reset()
-				hFunc.Write(s)
-				fmt.Printf("State: %v\n", big.NewInt(0).SetBytes(hFunc.Sum(nil)))*/
-		copy(state[i*hFunc.Size():(i+1)*hFunc.Size()], s)
-	}
-
-	return state, nil
-}
-
 func MerkleProofs(state []byte) (frontend.Variable, [nbAccounts][depth]frontend.Variable, [nbAccounts][depth - 1]frontend.Variable, error) {
 	hFunc := mimc.NewMiMC()
 	var merkleProofs [nbAccounts][depth]frontend.Variable
@@ -146,13 +130,13 @@ func main() {
 		return
 	}
 
-	state, err := State(accounts)
+	state, err := zkOracle.NewState(mimc.NewMiMC(), accounts)
 	if err != nil {
 		fmt.Printf("%v", err)
 		return
 	}
 
-	merkleRoot, merkleProofs, merkleHelpers, err := MerkleProofs(state)
+	merkleRoot, merkleProofs, merkleHelpers, err := MerkleProofs(state.HashData())
 	if err != nil {
 		fmt.Printf("%v", err)
 		return
