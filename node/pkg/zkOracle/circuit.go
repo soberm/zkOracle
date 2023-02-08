@@ -13,7 +13,6 @@ import (
 const (
 	nbAccounts = 4
 	depth      = 3
-	threshold  = 2
 )
 
 type Circuit struct {
@@ -73,7 +72,6 @@ func (c *Circuit) Define(api frontend.API) error {
 	// Check aggregator included
 	merkle.VerifyProof(api, hFunc, c.Root, c.Aggregator.MerkleProof[:], c.Aggregator.MerkleProofHelper[:])
 
-	count := frontend.Variable(0)
 	for _, validator := range c.Validators {
 		hFunc.Reset()
 
@@ -91,10 +89,8 @@ func (c *Circuit) Define(api frontend.API) error {
 			return fmt.Errorf("verify eddsa: %w", err)
 		}
 
-		count = api.Select(api.Cmp(c.BlockHash, validator.BlockHash), count, api.Add(count, 1))
+		api.AssertIsEqual(c.BlockHash, validator.BlockHash)
 	}
-
-	api.AssertIsEqual(api.Cmp(count, threshold), 1)
 
 	return nil
 }

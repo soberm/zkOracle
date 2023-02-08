@@ -56,10 +56,6 @@ func GenerateVotes(accounts []*zkOracle.Account, proofs [nbAccounts][depth]front
 		var sig eddsa2.Signature
 		result := hexutils.HexToBytes("8a37bed7896a37e676fe5498e7fc14da08897b13147f7181190253c9841e09bb")
 
-		if i == 3 {
-			result = hexutils.HexToBytes("8a37bed7896a37e676fe5498e7fc14da08897b13147f7181190253c9841e08bb")
-		}
-
 		pub.Assign(ecc.BN254, account.SecretKey.PublicKey.Bytes())
 
 		sigBin, err := account.SecretKey.Sign(result, mimc.NewMiMC())
