@@ -61,6 +61,13 @@ describe("ZKOracle", function () {
     return { zkOracle, owner, addr1, addr2 };
   }
 
+  it("getBlockByNumber should emit event", async function () {
+    const { zkOracle } = await loadFixture(fullTreeFixture);
+    let tx = zkOracle.getBlockByNumber("5");
+    await expect(tx).to.emit(zkOracle, "BlockRequested")
+        .withArgs(5, 0);
+  });
+
   it("replace should revert if value too low", async function () {
     const { zkOracle, owner } = await loadFixture(fullTreeFixture);
     let tx = zkOracle.replace(

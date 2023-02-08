@@ -23,13 +23,33 @@ contract ZKOracle {
     mapping(uint256 => address) accounts;
     mapping(address => uint256) exitTimes;
 
+    uint256 nextRequest;
+    mapping(uint256 => uint256) requests;
+    mapping(uint256 => bytes32) blocks;
+
     event Registered(address indexed sender);
     event Replaced(address indexed sender, address indexed replaced);
     event Exiting(address indexed sender);
     event Withdrawn(address indexed sender);
 
+    event BlockRequested(uint256 indexed number, uint256 indexed request);
+    event BlockSubmitted(uint256 indexed request);
+
     constructor(address merkleTreeAddress) {
         merkleTree = MerkleTree(merkleTreeAddress);
+    }
+
+    function getBlockByNumber(uint256 number) public payable {
+        requests[nextRequest] = number;
+        emit BlockRequested(number, nextRequest);
+
+        nextRequest +=1;
+    }
+
+    function submitBlock(uint256 request, bytes32 blockHash) public {
+        blocks[request] = blockHash;
+        //TODO: Verify proof
+        emit BlockSubmitted(request);
     }
 
     function register(PublicKey memory publicKey) public payable {
