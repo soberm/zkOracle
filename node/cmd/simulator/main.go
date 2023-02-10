@@ -2,9 +2,7 @@ package main
 
 import (
 	"bytes"
-	"errors"
 	"fmt"
-	"github.com/consensys/gnark-crypto/accumulator/merkletree"
 	"github.com/consensys/gnark-crypto/ecc"
 	"github.com/consensys/gnark-crypto/ecc/bn254/fp"
 	"github.com/consensys/gnark-crypto/ecc/bn254/fr/mimc"
@@ -13,7 +11,6 @@ import (
 	"github.com/consensys/gnark/backend/groth16"
 	"github.com/consensys/gnark/frontend"
 	"github.com/consensys/gnark/frontend/cs/r1cs"
-	"github.com/consensys/gnark/std/accumulator/merkle"
 	"github.com/consensys/gnark/std/algebra/twistededwards"
 	eddsa2 "github.com/consensys/gnark/std/signature/eddsa"
 	"github.com/status-im/keycard-go/hexutils"
@@ -98,53 +95,6 @@ func GenerateVotes(privateKeys []*eddsa.PrivateKey, state *zkOracle.State) ([nbA
 	return votes, nil
 }
 
-func MerkleProofs(state *zkOracle.State) (frontend.Variable, [nbAccounts][depth]frontend.Variable, [nbAccounts][depth - 1]frontend.Variable, error) {
-	hFunc := mimc.NewMiMC()
-	var merkleProofs [nbAccounts][depth]frontend.Variable
-	var merkleHelpers [nbAccounts][depth - 1]frontend.Variable
-	var merkleRoot frontend.Variable
-
-	for i := 0; i < nbAccounts; i++ {
-
-		var stateBuf bytes.Buffer
-		_, err := stateBuf.Write(state.HashData())
-		if err != nil {
-			return merkleRoot, merkleProofs, merkleHelpers, fmt.Errorf("%v", err)
-		}
-		root, proof, numLeaves, _ := merkletree.BuildReaderProof(&stateBuf, hFunc, hFunc.Size(), uint64(i))
-		proofHelper := merkle.GenerateProofHelper(proof, uint64(i), numLeaves)
-
-		if !merkletree.VerifyProof(hFunc, root, proof, uint64(i), numLeaves) {
-			return merkleRoot, merkleProofs, merkleHelpers, errors.New("invalid merkle proof")
-		}
-
-		p := make([]*big.Int, len(proof))
-		for i, node := range proof {
-			p[i] = big.NewInt(0).SetBytes(node)
-		}
-		fmt.Printf("Proof: %v\n", p)
-		fmt.Printf("Helper: %v\n", proofHelper)
-		fmt.Printf("Root: %v\n", big.NewInt(0).SetBytes(root))
-
-		var path [depth]frontend.Variable
-		var helper [depth - 1]frontend.Variable
-
-		for i := 0; i < len(proof); i++ {
-			path[i] = proof[i]
-		}
-
-		for i := 0; i < len(proofHelper); i++ {
-			helper[i] = proofHelper[i]
-		}
-		merkleProofs[i] = path
-		merkleHelpers[i] = helper
-		if i == 0 {
-			merkleRoot = root
-		}
-	}
-	return merkleRoot, merkleProofs, merkleHelpers, nil
-}
-
 func main() {
 
 	privateKeys, accounts, err := GenerateAccounts()
@@ -187,7 +137,7 @@ func main() {
 		return
 	}
 
-	assignment.Root = merkleRoot
+	assignment.PreStateRoot = merkleRoot
 	assignment.BlockHash = blockHash
 
 	const fpSize = fp.Bytes
@@ -217,8 +167,14 @@ func main() {
 		fmt.Printf("%v", err)
 		return
 	}
-
 	assignment.Validators = votes
+
+	root, err := state.Root()
+	if err != nil {
+		fmt.Printf("%v", err)
+		return
+	}
+	assignment.PostStateRoot = root
 
 	w, err := frontend.NewWitness(&assignment, ecc.BN254)
 	if err != nil {

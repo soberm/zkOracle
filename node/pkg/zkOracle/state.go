@@ -76,6 +76,15 @@ func (s *State) ReadAccount(i uint64) (Account, error) {
 	return res, nil
 }
 
+func (s *State) Root() ([]byte, error) {
+	var stateBuf bytes.Buffer
+	_, err := stateBuf.Write(s.HashData())
+	if err != nil {
+		return nil, fmt.Errorf("%v", err)
+	}
+	return merkletree.ReaderRoot(&stateBuf, s.hFunc, s.hFunc.Size())
+}
+
 func (s *State) MerkleProof(i uint64) ([]byte, [depth]frontend.Variable, [depth - 1]frontend.Variable, error) {
 
 	var path [depth]frontend.Variable
@@ -99,7 +108,7 @@ func (s *State) MerkleProof(i uint64) ([]byte, [depth]frontend.Variable, [depth 
 	}
 	fmt.Printf("Proof: %v\n", p)
 	fmt.Printf("Helper: %v\n", proofHelper)
-	fmt.Printf("Root: %v\n", big.NewInt(0).SetBytes(root))
+	fmt.Printf("PreStateRoot: %v\n", big.NewInt(0).SetBytes(root))
 
 	for i := 0; i < len(proof); i++ {
 		path[i] = proof[i]

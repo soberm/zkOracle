@@ -16,10 +16,11 @@ const (
 )
 
 type Circuit struct {
-	Root       frontend.Variable `gnark:",public"`
-	BlockHash  frontend.Variable `gnark:",public"`
-	Aggregator AggregatorConstraints
-	Validators [nbAccounts]ValidatorConstraints
+	PreStateRoot  frontend.Variable `gnark:",public"`
+	PostStateRoot frontend.Variable `gnark:",public"`
+	BlockHash     frontend.Variable `gnark:",public"`
+	Aggregator    AggregatorConstraints
+	Validators    [nbAccounts]ValidatorConstraints
 }
 
 type AggregatorConstraints struct {
@@ -70,7 +71,7 @@ func (c *Circuit) Define(api frontend.API) error {
 
 	// Check aggregator included
 	hFunc.Reset()
-	merkle.VerifyProof(api, hFunc, c.Root, c.Aggregator.MerkleProof[:], c.Aggregator.MerkleProofHelper[:])
+	merkle.VerifyProof(api, hFunc, c.PreStateRoot, c.Aggregator.MerkleProof[:], c.Aggregator.MerkleProofHelper[:])
 
 	//Reward the aggregator
 	hFunc.Reset()
@@ -117,6 +118,8 @@ func (c *Circuit) Define(api frontend.API) error {
 		hFunc.Reset()
 		intermediateRoot = ComputeRootFromPath(api, hFunc, validator.MerkleProof[:], validator.MerkleProofHelper[:])
 	}
+	api.Println(intermediateRoot)
+	api.AssertIsEqual(c.PostStateRoot, intermediateRoot)
 
 	return nil
 }
