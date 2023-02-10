@@ -95,10 +95,10 @@ func (s *State) MerkleProof(i uint64) ([]byte, [depth]frontend.Variable, [depth 
 	if err != nil {
 		return nil, path, helper, fmt.Errorf("%v", err)
 	}
-	root, proof, numLeaves, _ := merkletree.BuildReaderProof(&stateBuf, s.hFunc, s.hFunc.Size(), uint64(i))
-	proofHelper := merkle.GenerateProofHelper(proof, uint64(i), numLeaves)
+	root, proof, numLeaves, _ := merkletree.BuildReaderProof(&stateBuf, s.hFunc, s.hFunc.Size(), i)
+	proofHelper := merkle.GenerateProofHelper(proof, i, numLeaves)
 
-	if !merkletree.VerifyProof(s.hFunc, root, proof, uint64(i), numLeaves) {
+	if !merkletree.VerifyProof(s.hFunc, root, proof, i, numLeaves) {
 		return nil, path, helper, errors.New("invalid merkle proof")
 	}
 
@@ -106,9 +106,9 @@ func (s *State) MerkleProof(i uint64) ([]byte, [depth]frontend.Variable, [depth 
 	for i, node := range proof {
 		p[i] = big.NewInt(0).SetBytes(node)
 	}
-	fmt.Printf("Proof: %v\n", p)
-	fmt.Printf("Helper: %v\n", proofHelper)
-	fmt.Printf("PreStateRoot: %v\n", big.NewInt(0).SetBytes(root))
+	/*	fmt.Printf("Proof: %v\n", p)
+		fmt.Printf("Helper: %v\n", proofHelper)
+		fmt.Printf("PreStateRoot: %v\n", big.NewInt(0).SetBytes(root))*/
 
 	for i := 0; i < len(proof); i++ {
 		path[i] = proof[i]

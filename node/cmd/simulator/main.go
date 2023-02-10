@@ -33,10 +33,10 @@ func GenerateAccounts() ([]*eddsa.PrivateKey, []*zkOracle.Account, error) {
 		if err != nil {
 			return nil, nil, fmt.Errorf("generate key: %w", err)
 		}
-		x := sk.PublicKey.A.X.Bytes()
-		y := sk.PublicKey.A.Y.Bytes()
-		fmt.Printf("Pub-X: %v\n", big.NewInt(0).SetBytes(x[:]))
-		fmt.Printf("Pub-Y: %v\n", big.NewInt(0).SetBytes(y[:]))
+		/*		x := sk.PublicKey.A.X.Bytes()
+				y := sk.PublicKey.A.Y.Bytes()
+				fmt.Printf("Pub-X: %v\n", big.NewInt(0).SetBytes(x[:]))
+				fmt.Printf("Pub-Y: %v\n", big.NewInt(0).SetBytes(y[:]))*/
 
 		accounts[i] = &zkOracle.Account{
 			big.NewInt(int64(i)),
@@ -73,7 +73,6 @@ func GenerateVotes(privateKeys []*eddsa.PrivateKey, state *zkOracle.State) ([nbA
 		if err != nil {
 			return votes, fmt.Errorf("read account: %w", err)
 		}
-		fmt.Printf("Account: %v\n", account)
 
 		votes[i] = zkOracle.ValidatorConstraints{
 			Index:             account.Index,
@@ -85,7 +84,7 @@ func GenerateVotes(privateKeys []*eddsa.PrivateKey, state *zkOracle.State) ([nbA
 			BlockHash:         result,
 		}
 
-		account.Balance.Add(account.Balance, big.NewInt(5))
+		account.Balance.Add(account.Balance, big.NewInt(zkOracle.ValidatorReward))
 		err = state.WriteAccount(account)
 		if err != nil {
 			return votes, fmt.Errorf("write account: %w", err)
@@ -155,7 +154,7 @@ func main() {
 		fmt.Printf("read account: %w", err)
 		return
 	}
-	account.Balance = big.NewInt(50)
+	account.Balance.Add(account.Balance, big.NewInt(zkOracle.AggregatorReward))
 	err = state.WriteAccount(account)
 	if err != nil {
 		fmt.Printf("write account: %w", err)
@@ -175,6 +174,11 @@ func main() {
 		return
 	}
 	assignment.PostStateRoot = root
+
+	/*	for i := 0; i < nbAccounts; i++ {
+		a, _ := state.ReadAccount(uint64(i))
+		fmt.Printf("Account: %v\n", a)
+	}*/
 
 	w, err := frontend.NewWitness(&assignment, ecc.BN254)
 	if err != nil {

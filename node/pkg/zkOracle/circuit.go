@@ -11,8 +11,10 @@ import (
 )
 
 const (
-	nbAccounts = 4
-	depth      = 3
+	nbAccounts       = 4
+	depth            = 3
+	AggregatorReward = 500000000000000
+	ValidatorReward  = 20000000000
 )
 
 type Circuit struct {
@@ -78,13 +80,12 @@ func (c *Circuit) Define(api frontend.API) error {
 	hFunc.Write(c.Aggregator.Index)
 	hFunc.Write(pubKey.X)
 	hFunc.Write(pubKey.Y)
-	hFunc.Write(api.Add(c.Aggregator.Balance, 50))
+	hFunc.Write(api.Add(c.Aggregator.Balance, AggregatorReward))
 	c.Aggregator.MerkleProof[0] = hFunc.Sum()
 
 	//Compute new intermediate root
 	hFunc.Reset()
 	intermediateRoot := ComputeRootFromPath(api, hFunc, c.Aggregator.MerkleProof[:], c.Aggregator.MerkleProofHelper[:])
-	api.Println(intermediateRoot)
 
 	for _, validator := range c.Validators {
 
@@ -111,14 +112,14 @@ func (c *Circuit) Define(api frontend.API) error {
 		hFunc.Write(validator.Index)
 		hFunc.Write(validator.PublicKey.A.X)
 		hFunc.Write(validator.PublicKey.A.Y)
-		hFunc.Write(api.Add(validator.Balance, 5))
+		hFunc.Write(api.Add(validator.Balance, ValidatorReward))
 		validator.MerkleProof[0] = hFunc.Sum()
 
 		//Compute new intermediate root
 		hFunc.Reset()
 		intermediateRoot = ComputeRootFromPath(api, hFunc, validator.MerkleProof[:], validator.MerkleProofHelper[:])
 	}
-	api.Println(intermediateRoot)
+
 	api.AssertIsEqual(c.PostStateRoot, intermediateRoot)
 
 	return nil
