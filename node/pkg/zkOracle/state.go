@@ -1,8 +1,14 @@
 package zkOracle
 
 import (
+	"bytes"
+	"errors"
 	"fmt"
+	"github.com/consensys/gnark-crypto/accumulator/merkletree"
+	"github.com/consensys/gnark/frontend"
+	"github.com/consensys/gnark/std/accumulator/merkle"
 	"hash"
+	"math/big"
 )
 
 type State struct {
@@ -47,10 +53,63 @@ func (s *State) UpdateState(vote *Vote) error {
 	return nil
 }
 
+func (s *State) WriteAccount(account Account) error {
+
+	i := int(account.Index.Int64())
+	accountData := account.Serialize()
+
+	copy(s.data[i*accountSize:], accountData)
+
+	s.hFunc.Reset()
+	_, err := s.hFunc.Write(accountData)
+	if err != nil {
+		return fmt.Errorf("hash account: %w", err)
+	}
+	copy(s.hData[i*s.hFunc.Size():(i+1)*s.hFunc.Size()], s.hFunc.Sum(nil))
+
+	return nil
+}
+
 func (s *State) ReadAccount(i uint64) (Account, error) {
 	var res Account
 	res.Deserialize(s.data[int(i)*accountSize : int(i)*accountSize+accountSize])
 	return res, nil
+}
+
+func (s *State) MerkleProof(i uint64) ([]byte, [depth]frontend.Variable, [depth - 1]frontend.Variable, error) {
+
+	var path [depth]frontend.Variable
+	var helper [depth - 1]frontend.Variable
+
+	var stateBuf bytes.Buffer
+	_, err := stateBuf.Write(s.HashData())
+	if err != nil {
+		return nil, path, helper, fmt.Errorf("%v", err)
+	}
+	root, proof, numLeaves, _ := merkletree.BuildReaderProof(&stateBuf, s.hFunc, s.hFunc.Size(), uint64(i))
+	proofHelper := merkle.GenerateProofHelper(proof, uint64(i), numLeaves)
+
+	if !merkletree.VerifyProof(s.hFunc, root, proof, uint64(i), numLeaves) {
+		return nil, path, helper, errors.New("invalid merkle proof")
+	}
+
+	p := make([]*big.Int, len(proof))
+	for i, node := range proof {
+		p[i] = big.NewInt(0).SetBytes(node)
+	}
+	fmt.Printf("Proof: %v\n", p)
+	fmt.Printf("Helper: %v\n", proofHelper)
+	fmt.Printf("Root: %v\n", big.NewInt(0).SetBytes(root))
+
+	for i := 0; i < len(proof); i++ {
+		path[i] = proof[i]
+	}
+
+	for i := 0; i < len(proofHelper); i++ {
+		helper[i] = proofHelper[i]
+	}
+
+	return root, path, helper, nil
 }
 
 func (s *State) Data() []byte {

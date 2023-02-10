@@ -51,27 +51,38 @@ func GenerateAccounts() ([]*eddsa.PrivateKey, []*zkOracle.Account, error) {
 	return privateKeys, accounts, nil
 }
 
-func GenerateVotes(accounts []*eddsa.PrivateKey, proofs [nbAccounts][depth]frontend.Variable, helper [nbAccounts][depth - 1]frontend.Variable) ([nbAccounts]zkOracle.ValidatorConstraints, error) {
+func GenerateVotes(privateKeys []*eddsa.PrivateKey, state *zkOracle.State) ([nbAccounts]zkOracle.ValidatorConstraints, error) {
 	var votes [nbAccounts]zkOracle.ValidatorConstraints
-	for i, account := range accounts {
+	for i, privateKey := range privateKeys {
+
 		var pub eddsa2.PublicKey
 		var sig eddsa2.Signature
 		result := hexutils.HexToBytes("8a37bed7896a37e676fe5498e7fc14da08897b13147f7181190253c9841e09bb")
 
-		pub.Assign(ecc.BN254, account.PublicKey.Bytes())
+		pub.Assign(ecc.BN254, privateKey.PublicKey.Bytes())
 
-		sigBin, err := account.Sign(result, mimc.NewMiMC())
+		sigBin, err := privateKey.Sign(result, mimc.NewMiMC())
 		if err != nil {
 			return votes, fmt.Errorf("sign: %w", err)
 		}
 		sig.Assign(ecc.BN254, sigBin)
 
+		_, proof, helper, err := state.MerkleProof(uint64(i))
+		if err != nil {
+			return votes, fmt.Errorf("merkle proof: %w", err)
+		}
+
+		account, err := state.ReadAccount(uint64(i))
+		if err != nil {
+			return votes, fmt.Errorf("read account: %w", err)
+		}
+
 		votes[i] = zkOracle.ValidatorConstraints{
-			Index:             i,
+			Index:             account.Index,
 			PublicKey:         pub,
-			Balance:           big.NewInt(0),
-			MerkleProof:       proofs[i],
-			MerkleProofHelper: helper[i],
+			Balance:           account.Balance,
+			MerkleProof:       proof,
+			MerkleProofHelper: helper,
 			Signature:         sig,
 			BlockHash:         result,
 		}
@@ -80,15 +91,16 @@ func GenerateVotes(accounts []*eddsa.PrivateKey, proofs [nbAccounts][depth]front
 	return votes, nil
 }
 
-func MerkleProofs(state []byte) (frontend.Variable, [nbAccounts][depth]frontend.Variable, [nbAccounts][depth - 1]frontend.Variable, error) {
+func MerkleProofs(state *zkOracle.State) (frontend.Variable, [nbAccounts][depth]frontend.Variable, [nbAccounts][depth - 1]frontend.Variable, error) {
 	hFunc := mimc.NewMiMC()
 	var merkleProofs [nbAccounts][depth]frontend.Variable
 	var merkleHelpers [nbAccounts][depth - 1]frontend.Variable
 	var merkleRoot frontend.Variable
 
 	for i := 0; i < nbAccounts; i++ {
+
 		var stateBuf bytes.Buffer
-		_, err := stateBuf.Write(state)
+		_, err := stateBuf.Write(state.HashData())
 		if err != nil {
 			return merkleRoot, merkleProofs, merkleHelpers, fmt.Errorf("%v", err)
 		}
@@ -119,7 +131,9 @@ func MerkleProofs(state []byte) (frontend.Variable, [nbAccounts][depth]frontend.
 		}
 		merkleProofs[i] = path
 		merkleHelpers[i] = helper
-		merkleRoot = root
+		if i == 0 {
+			merkleRoot = root
+		}
 	}
 	return merkleRoot, merkleProofs, merkleHelpers, nil
 }
@@ -133,18 +147,6 @@ func main() {
 	}
 
 	state, err := zkOracle.NewState(mimc.NewMiMC(), accounts)
-	if err != nil {
-		fmt.Printf("%v", err)
-		return
-	}
-
-	merkleRoot, merkleProofs, merkleHelpers, err := MerkleProofs(state.HashData())
-	if err != nil {
-		fmt.Printf("%v", err)
-		return
-	}
-
-	votes, err := GenerateVotes(privateKeys, merkleProofs, merkleHelpers)
 	if err != nil {
 		fmt.Printf("%v", err)
 		return
@@ -171,6 +173,13 @@ func main() {
 	blockHash := hexutils.HexToBytes("8a37bed7896a37e676fe5498e7fc14da08897b13147f7181190253c9841e09bb")
 
 	var assignment zkOracle.Circuit
+
+	merkleRoot, proof, helper, err := state.MerkleProof(0)
+	if err != nil {
+		fmt.Printf("merkle proof: %w", err)
+		return
+	}
+
 	assignment.Root = merkleRoot
 	assignment.BlockHash = blockHash
 
@@ -180,9 +189,28 @@ func main() {
 		Seed:              twistededwards.Point{X: 0, Y: 1},
 		SecretKey:         privateKeys[0].Bytes()[fpSize : 2*fpSize],
 		Balance:           big.NewInt(0),
-		MerkleProof:       merkleProofs[0],
-		MerkleProofHelper: merkleHelpers[0],
+		MerkleProof:       proof,
+		MerkleProofHelper: helper,
 	}
+
+	account, err := state.ReadAccount(0)
+	if err != nil {
+		fmt.Printf("read account: %w", err)
+		return
+	}
+	account.Balance = big.NewInt(50)
+	err = state.WriteAccount(account)
+	if err != nil {
+		fmt.Printf("write account: %w", err)
+		return
+	}
+
+	votes, err := GenerateVotes(privateKeys, state)
+	if err != nil {
+		fmt.Printf("%v", err)
+		return
+	}
+
 	assignment.Validators = votes
 
 	w, err := frontend.NewWitness(&assignment, ecc.BN254)
