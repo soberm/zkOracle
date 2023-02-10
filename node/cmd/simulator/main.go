@@ -76,15 +76,22 @@ func GenerateVotes(privateKeys []*eddsa.PrivateKey, state *zkOracle.State) ([nbA
 		if err != nil {
 			return votes, fmt.Errorf("read account: %w", err)
 		}
+		fmt.Printf("Account: %v\n", account)
 
 		votes[i] = zkOracle.ValidatorConstraints{
 			Index:             account.Index,
 			PublicKey:         pub,
-			Balance:           account.Balance,
+			Balance:           new(big.Int).Set(account.Balance), //passed by reference
 			MerkleProof:       proof,
 			MerkleProofHelper: helper,
 			Signature:         sig,
 			BlockHash:         result,
+		}
+
+		account.Balance.Add(account.Balance, big.NewInt(5))
+		err = state.WriteAccount(account)
+		if err != nil {
+			return votes, fmt.Errorf("write account: %w", err)
 		}
 	}
 

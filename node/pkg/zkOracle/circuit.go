@@ -67,23 +67,17 @@ func (c *Circuit) Define(api frontend.API) error {
 	hFunc.Write(pubKey.Y)
 	hFunc.Write(c.Aggregator.Balance)
 	api.AssertIsEqual(hFunc.Sum(), c.Aggregator.MerkleProof[0])
-	api.Println(hFunc.Sum())
-	hFunc.Reset()
 
-	api.Println(c.Root)
 	// Check aggregator included
+	hFunc.Reset()
 	merkle.VerifyProof(api, hFunc, c.Root, c.Aggregator.MerkleProof[:], c.Aggregator.MerkleProofHelper[:])
 
-	hFunc.Reset()
-
-	updatedBalance := api.Add(c.Aggregator.Balance, 50)
-	api.Println(updatedBalance)
-
 	//Reward the aggregator
+	hFunc.Reset()
 	hFunc.Write(c.Aggregator.Index)
 	hFunc.Write(pubKey.X)
 	hFunc.Write(pubKey.Y)
-	hFunc.Write(updatedBalance)
+	hFunc.Write(api.Add(c.Aggregator.Balance, 50))
 	c.Aggregator.MerkleProof[0] = hFunc.Sum()
 
 	//Compute new intermediate root
@@ -92,18 +86,17 @@ func (c *Circuit) Define(api frontend.API) error {
 	api.Println(intermediateRoot)
 
 	for _, validator := range c.Validators {
-		hFunc.Reset()
 
 		//Verify that the account matches the leaf
+		hFunc.Reset()
 		hFunc.Write(validator.Index)
 		hFunc.Write(validator.PublicKey.A.X)
 		hFunc.Write(validator.PublicKey.A.Y)
 		hFunc.Write(validator.Balance)
 		api.AssertIsEqual(hFunc.Sum(), validator.MerkleProof[0])
 
-		hFunc.Reset()
-
 		//Check validator included
+		hFunc.Reset()
 		merkle.VerifyProof(api, hFunc, intermediateRoot, validator.MerkleProof[:], validator.MerkleProofHelper[:])
 
 		if err := eddsa.Verify(curve, validator.Signature, validator.BlockHash, validator.PublicKey, &hFunc); err != nil {
@@ -113,15 +106,16 @@ func (c *Circuit) Define(api frontend.API) error {
 		api.AssertIsEqual(c.BlockHash, validator.BlockHash)
 
 		//Reward the validator
-		/*		hFunc.Write(validator.Index)
-				hFunc.Write(validator.PublicKey.A.X)
-				hFunc.Write(validator.PublicKey.A.Y)
-				hFunc.Write(api.Add(validator.Balance, 5))
-				validator.MerkleProof[0] = hFunc.Sum()*/
+		hFunc.Reset()
+		hFunc.Write(validator.Index)
+		hFunc.Write(validator.PublicKey.A.X)
+		hFunc.Write(validator.PublicKey.A.Y)
+		hFunc.Write(api.Add(validator.Balance, 5))
+		validator.MerkleProof[0] = hFunc.Sum()
 
 		//Compute new intermediate root
-		//hFunc.Reset()
-		//intermediateRoot = ComputeRootFromPath(api, hFunc, c.Aggregator.MerkleProof[:], c.Aggregator.MerkleProofHelper[:])
+		hFunc.Reset()
+		intermediateRoot = ComputeRootFromPath(api, hFunc, validator.MerkleProof[:], validator.MerkleProofHelper[:])
 	}
 
 	return nil
