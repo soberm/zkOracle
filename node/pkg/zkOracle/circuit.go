@@ -55,6 +55,16 @@ func (c *Circuit) Define(api frontend.API) error {
 		return fmt.Errorf("mimc: %w", err)
 	}
 
+	//Check for duplicates
+	for i := 0; i < nbAccounts; i++ {
+		for j := 0; j < nbAccounts; j++ {
+			if i == j {
+				continue
+			}
+			api.AssertIsDifferent(c.Validators[i].Index, c.Validators[j].Index)
+		}
+	}
+
 	//Compute next Seed
 	c.Aggregator.Seed = curve.ScalarMul(c.Aggregator.Seed, c.Aggregator.SecretKey)
 
