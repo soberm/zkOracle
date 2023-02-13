@@ -27,6 +27,10 @@ contract ZKOracle {
     mapping(uint256 => uint256) requests;
     mapping(uint256 => bytes32) blocks;
 
+    uint256 seedX;
+    uint256 seedY;
+    mapping(uint256 => string) ipAddr;
+
     event Registered(address indexed sender);
     event Replaced(address indexed sender, address indexed replaced);
     event Exiting(address indexed sender);
@@ -35,15 +39,17 @@ contract ZKOracle {
     event BlockRequested(uint256 indexed number, uint256 indexed request);
     event BlockSubmitted(uint256 indexed request);
 
-    constructor(address merkleTreeAddress) {
+    constructor(address merkleTreeAddress, uint256 _seedX, uint256 _seedY) {
         merkleTree = MerkleTree(merkleTreeAddress);
+        seedX = _seedX;
+        seedY = _seedY;
     }
 
     function getBlockByNumber(uint256 number) public payable {
         requests[nextRequest] = number;
         emit BlockRequested(number, nextRequest);
 
-        nextRequest +=1;
+        nextRequest += 1;
     }
 
     function submitBlock(uint256 request, bytes32 blockHash) public {
@@ -52,13 +58,22 @@ contract ZKOracle {
         emit BlockSubmitted(request);
     }
 
-    function register(PublicKey memory publicKey) public payable {
+    function getAggregator() public view returns (uint) {
+        return seedX % 2 ** merkleTree.getLevels();
+    }
+
+    function getIPAddress(uint256 index) public view returns (string memory) {
+        return ipAddr[index];
+    }
+
+    function register(PublicKey memory publicKey, string memory ip) public payable {
         Account memory account = Account(
             merkleTree.getNextLeafIndex(),
             publicKey,
             msg.value
         );
         accounts[account.index] = msg.sender;
+        ipAddr[account.index] = ip;
         uint256 accountHash = hashAccount(account);
 
         uint[] memory input = new uint[](1);
