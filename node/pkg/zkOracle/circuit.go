@@ -17,12 +17,19 @@ const (
 	ValidatorReward  = 20000000000
 )
 
-type Circuit struct {
+type AggregationCircuit struct {
 	PreStateRoot  frontend.Variable `gnark:",public"`
 	PostStateRoot frontend.Variable `gnark:",public"`
 	BlockHash     frontend.Variable `gnark:",public"`
 	Aggregator    AggregatorConstraints
 	Validators    [nbAccounts]ValidatorConstraints
+}
+
+type SlashingCircuit struct {
+	PreStateRoot  frontend.Variable `gnark:",public"`
+	PostStateRoot frontend.Variable `gnark:",public"`
+	BlockHash     frontend.Variable `gnark:",public"`
+	Validator     ValidatorConstraints
 }
 
 type AggregatorConstraints struct {
@@ -44,7 +51,7 @@ type ValidatorConstraints struct {
 	BlockHash         frontend.Variable
 }
 
-func (c *Circuit) Define(api frontend.API) error {
+func (c *AggregationCircuit) Define(api frontend.API) error {
 	curve, err := twistededwards.NewEdCurve(api, edwards.BN254)
 	if err != nil {
 		return fmt.Errorf("edwards curve: %w", err)
@@ -132,5 +139,41 @@ func (c *Circuit) Define(api frontend.API) error {
 
 	api.AssertIsEqual(c.PostStateRoot, intermediateRoot)
 
+	return nil
+}
+
+func (c *SlashingCircuit) Define(api frontend.API) error {
+	hFunc, err := mimc.NewMiMC(api)
+	if err != nil {
+		return fmt.Errorf("mimc: %w", err)
+	}
+
+	//Verify that the account matches the leaf
+	hFunc.Reset()
+	hFunc.Write(c.Validator)
+	hFunc.Write(c.Validator.PublicKey.A.X)
+	hFunc.Write(c.Validator.PublicKey.A.Y)
+	hFunc.Write(c.Validator.Balance)
+	api.AssertIsEqual(hFunc.Sum(), c.Validator.MerkleProof[0])
+
+	//Check validator included
+	hFunc.Reset()
+	merkle.VerifyProof(api, hFunc, c.PreStateRoot, c.Validator.MerkleProof[:], c.Validator.MerkleProofHelper[:])
+
+	//Slash the validator
+	hFunc.Reset()
+	hFunc.Write(c.Validator.Index)
+	hFunc.Write(c.Validator.PublicKey.A.X)
+	hFunc.Write(c.Validator.PublicKey.A.Y)
+	hFunc.Write(api.Sub(c.Validator.Balance, c.Validator.Balance))
+	c.Validator.MerkleProof[0] = hFunc.Sum()
+
+	//TODO: Reward the slasher
+
+	//Compute new root
+	hFunc.Reset()
+	root := ComputeRootFromPath(api, hFunc, c.Validator.MerkleProof[:], c.Validator.MerkleProofHelper[:])
+
+	api.AssertIsEqual(c.PostStateRoot, root)
 	return nil
 }

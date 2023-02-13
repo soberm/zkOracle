@@ -108,7 +108,7 @@ func main() {
 		return
 	}
 
-	var circuit zkOracle.Circuit
+	var circuit zkOracle.AggregationCircuit
 
 	// compile a circuit
 	_r1cs, err := frontend.Compile(ecc.BN254, r1cs.NewBuilder, &circuit)
@@ -128,7 +128,7 @@ func main() {
 
 	blockHash := hexutils.HexToBytes("8a37bed7896a37e676fe5498e7fc14da08897b13147f7181190253c9841e09bb")
 
-	var assignment zkOracle.Circuit
+	var assignment zkOracle.AggregationCircuit
 
 	merkleRoot, proof, helper, err := state.MerkleProof(0)
 	if err != nil {
