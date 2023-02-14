@@ -1,0 +1,17 @@
+syntax = "proto3";
+
+package zkOracle;
+option go_package = ".;zkOracle";
+
+message SendVoteRequest {
+  uint64 request = 1;
+  bytes blockHash = 2;
+  bytes signature = 3;
+}
+
+message SendVoteResponse {
+}
+
+service OracleNode {
+  rpc SendVote(SendVoteRequest) returns (SendVoteResponse);
+}

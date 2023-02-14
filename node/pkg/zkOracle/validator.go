@@ -2,12 +2,13 @@ package zkOracle
 
 import (
 	"context"
-	"encoding/hex"
 	"fmt"
 	"github.com/consensys/gnark-crypto/ecc/bn254/fr/mimc"
 	"github.com/consensys/gnark-crypto/ecc/bn254/twistededwards/eddsa"
 	"github.com/ethereum/go-ethereum/accounts/abi/bind"
 	"github.com/ethereum/go-ethereum/ethclient"
+	"google.golang.org/grpc"
+	"google.golang.org/grpc/credentials/insecure"
 )
 
 const CONFIRMATIONS uint64 = 5
@@ -34,7 +35,7 @@ func (v *Validator) WatchAndHandleBlockRequestedEvent(ctx context.Context) error
 	defer close(sink)
 
 	sub, err := v.zkOracleContract.WatchBlockRequested(&bind.WatchOpts{
-		Context: context.Background(),
+		Context: ctx,
 	}, sink, nil, nil)
 	if err != nil {
 		return err
@@ -45,7 +46,10 @@ func (v *Validator) WatchAndHandleBlockRequestedEvent(ctx context.Context) error
 		select {
 		case event := <-sink:
 			if err := v.HandleBlockRequestedEvent(ctx, event); err != nil {
-				fmt.Printf("handle BlockRequestedEvent: %v", err)
+				logger.Err(err).
+					Uint64("requestNumber", event.Request.Uint64()).
+					Uint64("blockNumber", event.Number.Uint64()).
+					Msg("handle block requested event")
 			}
 		case err = <-sub.Err():
 			return err
@@ -86,7 +90,6 @@ func (v *Validator) HandleBlockRequestedEvent(ctx context.Context, event *ZKOrac
 	if err != nil {
 		return fmt.Errorf("sign: %w", err)
 	}
-	fmt.Printf("Signature: %v\n", hex.EncodeToString(sig))
 
 	i, err := v.zkOracleContract.GetAggregator(
 		&bind.CallOpts{
@@ -108,7 +111,24 @@ func (v *Validator) HandleBlockRequestedEvent(ctx context.Context, event *ZKOrac
 		Str("ipAddr", addr).
 		Msg("sending vote to aggregator")
 
-	//TODO: Send message
+	conn, err := grpc.Dial(addr, grpc.WithTransportCredentials(insecure.NewCredentials()))
+	if err != nil {
+		return fmt.Errorf("dial %s: %w", addr, err)
+	}
+
+	client := NewOracleNodeClient(conn)
+	_, err = client.SendVote(ctx, &SendVoteRequest{
+		Request:   event.Request.Uint64(),
+		BlockHash: block.Hash().Bytes(),
+		Signature: sig,
+	})
+	if err != nil {
+		return fmt.Errorf("get ip addr: %w", err)
+	}
+
+	logger.Info().
+		Uint64("requestNumber", event.Request.Uint64()).
+		Msg("received response")
 
 	return nil
 }
