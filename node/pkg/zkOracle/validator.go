@@ -2,6 +2,7 @@ package zkOracle
 
 import (
 	"context"
+	"encoding/hex"
 	"fmt"
 	"github.com/consensys/gnark-crypto/ecc/bn254/fr/mimc"
 	"github.com/consensys/gnark-crypto/ecc/bn254/twistededwards/eddsa"
@@ -21,7 +22,10 @@ func NewValidator(ethClient *ethclient.Client, zkOracleContract *ZKOracleContrac
 	return &Validator{ethClient: ethClient, zkOracleContract: zkOracleContract, privateKey: privateKey}
 }
 
-func (v *Validator) Validate() error {
+func (v *Validator) Validate(ctx context.Context) error {
+	if err := v.WatchAndHandleBlockRequestedEvent(ctx); err != nil {
+		return fmt.Errorf("watch and handle block requested events: %w")
+	}
 	return nil
 }
 
@@ -52,6 +56,12 @@ func (v *Validator) WatchAndHandleBlockRequestedEvent(ctx context.Context) error
 }
 
 func (v *Validator) HandleBlockRequestedEvent(ctx context.Context, event *ZKOracleContractBlockRequested) error {
+
+	logger.Info().
+		Uint64("requestNumber", event.Request.Uint64()).
+		Uint64("blockNumber", event.Number.Uint64()).
+		Msg("handle block requested event")
+
 	block, err := v.ethClient.HeaderByNumber(ctx, event.Number)
 	if err != nil {
 		return fmt.Errorf("block by number: %w", err)
@@ -62,6 +72,12 @@ func (v *Validator) HandleBlockRequestedEvent(ctx context.Context, event *ZKOrac
 		return fmt.Errorf("blocknumber: %w", err)
 	}
 
+	logger.Info().
+		Uint64("requestNumber", event.Request.Uint64()).
+		Uint64("blockNumber", event.Number.Uint64()).
+		Uint64("head", currentBlockNumber).
+		Msg("check block confirmed")
+
 	if currentBlockNumber-block.Number.Uint64() < CONFIRMATIONS {
 		return fmt.Errorf("block not confirmed")
 	}
@@ -70,10 +86,12 @@ func (v *Validator) HandleBlockRequestedEvent(ctx context.Context, event *ZKOrac
 	if err != nil {
 		return fmt.Errorf("sign: %w", err)
 	}
-	fmt.Printf("%v", sig)
+	fmt.Printf("Signature: %v\n", hex.EncodeToString(sig))
 
-	i, err := v.zkOracleContract.GetAggregator(&bind.CallOpts{
-		Context: ctx},
+	i, err := v.zkOracleContract.GetAggregator(
+		&bind.CallOpts{
+			Context: ctx,
+		},
 	)
 	if err != nil {
 		return fmt.Errorf("get aggregator: %w", err)
@@ -83,7 +101,13 @@ func (v *Validator) HandleBlockRequestedEvent(ctx context.Context, event *ZKOrac
 	if err != nil {
 		return fmt.Errorf("get ip addr: %w", err)
 	}
-	fmt.Printf("%v", addr)
+
+	logger.Info().
+		Uint64("requestNumber", event.Request.Uint64()).
+		Uint64("index", i.Uint64()).
+		Str("ipAddr", addr).
+		Msg("sending vote to aggregator")
+
 	//TODO: Send message
 
 	return nil
