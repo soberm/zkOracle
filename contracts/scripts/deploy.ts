@@ -1,8 +1,21 @@
 import { ethers } from "hardhat";
 
 async function main() {
-  const zkOracleContractFactory = await ethers.getContractFactory("ZKOracle");
-  const zkOracle = await zkOracleContractFactory.deploy();
+
+  const MiMC = await ethers.getContractFactory("MiMC");
+  const miMC = await MiMC.deploy();
+
+  const MerkleTree = await ethers.getContractFactory("MerkleTree", {
+    libraries: {
+      MiMC: miMC.address,
+    },
+  });
+
+  const merkleTree = await MerkleTree.deploy(2);
+
+  const ZKOracle = await ethers.getContractFactory("contracts/ZKOracle.sol:ZKOracle");
+
+  const zkOracle = await ZKOracle.deploy(merkleTree.address, 0, 1);
 
   await zkOracle.deployed();
 
