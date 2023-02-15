@@ -24,39 +24,10 @@ func NewValidator(ethClient *ethclient.Client, zkOracleContract *ZKOracleContrac
 }
 
 func (v *Validator) Validate(ctx context.Context) error {
-	if err := v.WatchAndHandleBlockRequestedEvent(ctx); err != nil {
-		return fmt.Errorf("watch and handle block requested events: %w")
+	if err := WatchEvent(ctx, v.zkOracleContract.WatchBlockRequested, v.HandleBlockRequestedEvent); err != nil {
+		return fmt.Errorf("watch block requested events: %w")
 	}
 	return nil
-}
-
-func (v *Validator) WatchAndHandleBlockRequestedEvent(ctx context.Context) error {
-	sink := make(chan *ZKOracleContractBlockRequested)
-	defer close(sink)
-
-	sub, err := v.zkOracleContract.WatchBlockRequested(&bind.WatchOpts{
-		Context: ctx,
-	}, sink, nil, nil)
-	if err != nil {
-		return err
-	}
-	defer sub.Unsubscribe()
-
-	for {
-		select {
-		case event := <-sink:
-			if err := v.HandleBlockRequestedEvent(ctx, event); err != nil {
-				logger.Err(err).
-					Uint64("requestNumber", event.Request.Uint64()).
-					Uint64("blockNumber", event.Number.Uint64()).
-					Msg("handle block requested event")
-			}
-		case err = <-sub.Err():
-			return err
-		case <-ctx.Done():
-			return ctx.Err()
-		}
-	}
 }
 
 func (v *Validator) HandleBlockRequestedEvent(ctx context.Context, event *ZKOracleContractBlockRequested) error {

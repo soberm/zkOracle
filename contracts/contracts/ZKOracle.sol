@@ -36,7 +36,7 @@ contract ZKOracle {
     event Exiting(address indexed sender);
     event Withdrawn(address indexed sender);
 
-    event BlockRequested(uint256 indexed number, uint256 indexed request);
+    event BlockRequested(uint256 number, uint256 request);
     event BlockSubmitted(uint256 indexed request);
 
     constructor(address merkleTreeAddress, uint256 _seedX, uint256 _seedY) {
