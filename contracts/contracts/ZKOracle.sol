@@ -31,7 +31,7 @@ contract ZKOracle {
     uint256 seedY;
     mapping(uint256 => string) ipAddr;
 
-    event Registered(address indexed sender);
+    event Registered(address sender, uint256 index, PublicKey pubkey, uint256 value);
     event Replaced(address indexed sender, address indexed replaced);
     event Exiting(address indexed sender);
     event Withdrawn(address indexed sender);
@@ -82,7 +82,7 @@ contract ZKOracle {
 
         merkleTree.insert(h);
 
-        emit Registered(msg.sender);
+        emit Registered(msg.sender, account.index, account.pubKey, account.balance);
     }
 
     function replace(

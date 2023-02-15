@@ -4,6 +4,7 @@ import (
 	"context"
 	"crypto/ecdsa"
 	"fmt"
+	"github.com/consensys/gnark-crypto/ecc/bn254/fr/mimc"
 	"github.com/consensys/gnark-crypto/ecc/bn254/twistededwards/eddsa"
 	"github.com/ethereum/go-ethereum/accounts/abi/bind"
 	"github.com/ethereum/go-ethereum/common"
@@ -25,6 +26,8 @@ type Node struct {
 	aggregator      *Aggregator
 	validator       *Validator
 	votePool        *VotePool
+	state           *State
+	stateSync       *StateSync
 	server          *grpc.Server
 }
 
@@ -59,6 +62,13 @@ func NewNode() (*Node, error) {
 		return nil, fmt.Errorf("ecdsa private key: %w", err)
 	}
 
+	state, err := NewState(mimc.NewMiMC(), nil)
+	if err != nil {
+		return nil, fmt.Errorf("create state: %w", err)
+	}
+
+	stateSync := NewStateSync(state, contract)
+
 	return &Node{
 		server:          grpc.NewServer(),
 		contract:        contract,
@@ -68,6 +78,8 @@ func NewNode() (*Node, error) {
 		ecdsaPrivateKey: ecdsaPrivateKey,
 		eddsaPrivateKey: eddsaPrivateKey,
 		ethClient:       ethClient,
+		state:           state,
+		stateSync:       stateSync,
 	}, nil
 }
 
@@ -107,6 +119,12 @@ func (n *Node) Register(ipAddr string) error {
 }
 
 func (n *Node) Run(listener net.Listener) error {
+
+	go func() {
+		if err := n.stateSync.Synchronize(); err != nil {
+			logger.Err(err).Msg("synchronize")
+		}
+	}()
 
 	err := n.Register(listener.Addr().String())
 	if err != nil {
