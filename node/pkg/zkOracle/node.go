@@ -3,6 +3,7 @@ package zkOracle
 import (
 	"context"
 	"crypto/ecdsa"
+	"encoding/hex"
 	"fmt"
 	"github.com/consensys/gnark-crypto/ecc/bn254/fr/mimc"
 	"github.com/consensys/gnark-crypto/ecc/bn254/twistededwards/eddsa"
@@ -12,7 +13,6 @@ import (
 	"github.com/ethereum/go-ethereum/ethclient"
 	"google.golang.org/grpc"
 	"math/big"
-	"math/rand"
 	"net"
 )
 
@@ -31,25 +31,30 @@ type Node struct {
 	server          *grpc.Server
 }
 
-func NewNode() (*Node, error) {
+func NewNode(config *Config) (*Node, error) {
 
-	ethClient, err := ethclient.Dial("ws://127.0.0.1:8545")
+	ethClient, err := ethclient.Dial(config.Ethereum.TargetAddress)
 	if err != nil {
 		return nil, fmt.Errorf("dial eth: %w", err)
 	}
 
-	contract, err := NewZKOracleContract(common.HexToAddress("0x9fE46736679d2D9a65F0992F2272dE9f3c7fa6e0"), ethClient)
+	contract, err := NewZKOracleContract(common.HexToAddress(config.ContractAddress), ethClient)
 	if err != nil {
 		return nil, fmt.Errorf("oracle contract: %w", err)
 	}
 
-	r := rand.New(rand.NewSource(0))
-	eddsaPrivateKey, err := eddsa.GenerateKey(r)
+	b, err := hex.DecodeString(config.PrivateKey)
 	if err != nil {
-		return nil, fmt.Errorf("generate key: %w", err)
+		return nil, fmt.Errorf("eddsa private key to bytes: %w", err)
 	}
 
-	validator := NewValidator(ethClient, contract, eddsaPrivateKey)
+	eddsaPrivateKey := new(eddsa.PrivateKey)
+	_, err = eddsaPrivateKey.SetBytes(b)
+	if err != nil {
+		return nil, fmt.Errorf("eddsa private key from bytes: %w", err)
+	}
+
+	validator := NewValidator(config.Index, ethClient, contract, eddsaPrivateKey)
 	aggregator := NewAggregator()
 
 	chainID, err := ethClient.ChainID(context.Background())
@@ -57,7 +62,7 @@ func NewNode() (*Node, error) {
 		return nil, fmt.Errorf("chain id: %w", err)
 	}
 
-	ecdsaPrivateKey, err := crypto.HexToECDSA("ac0974bec39a17e36ba4a6b4d238ff944bacb478cbed5efcae784d7bf4f2ff80")
+	ecdsaPrivateKey, err := crypto.HexToECDSA(config.Ethereum.PrivateKey)
 	if err != nil {
 		return nil, fmt.Errorf("ecdsa private key: %w", err)
 	}
@@ -69,8 +74,10 @@ func NewNode() (*Node, error) {
 
 	stateSync := NewStateSync(state, contract)
 
-	return &Node{
-		server:          grpc.NewServer(),
+	server := grpc.NewServer()
+
+	node := &Node{
+		server:          server,
 		contract:        contract,
 		validator:       validator,
 		aggregator:      aggregator,
@@ -80,7 +87,11 @@ func NewNode() (*Node, error) {
 		ethClient:       ethClient,
 		state:           state,
 		stateSync:       stateSync,
-	}, nil
+		votePool:        NewVotePool(),
+	}
+	RegisterOracleNodeServer(server, node)
+
+	return node, nil
 }
 
 func (n *Node) Register(ipAddr string) error {

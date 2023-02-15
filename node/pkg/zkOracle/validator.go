@@ -14,18 +14,19 @@ import (
 const CONFIRMATIONS uint64 = 5
 
 type Validator struct {
+	index            uint64
 	ethClient        *ethclient.Client
 	zkOracleContract *ZKOracleContract
 	privateKey       *eddsa.PrivateKey
 }
 
-func NewValidator(ethClient *ethclient.Client, zkOracleContract *ZKOracleContract, privateKey *eddsa.PrivateKey) *Validator {
-	return &Validator{ethClient: ethClient, zkOracleContract: zkOracleContract, privateKey: privateKey}
+func NewValidator(index uint64, ethClient *ethclient.Client, zkOracleContract *ZKOracleContract, privateKey *eddsa.PrivateKey) *Validator {
+	return &Validator{index: index, ethClient: ethClient, zkOracleContract: zkOracleContract, privateKey: privateKey}
 }
 
 func (v *Validator) Validate(ctx context.Context) error {
 	if err := WatchEvent(ctx, v.zkOracleContract.WatchBlockRequested, v.HandleBlockRequestedEvent); err != nil {
-		return fmt.Errorf("watch block requested events: %w")
+		return fmt.Errorf("watch block requested events: %w", err)
 	}
 	return nil
 }
@@ -62,6 +63,13 @@ func (v *Validator) HandleBlockRequestedEvent(ctx context.Context, event *ZKOrac
 		return fmt.Errorf("sign: %w", err)
 	}
 
+	isValid, err := v.privateKey.PublicKey.Verify(sig, block.Hash().Bytes(), mimc.NewMiMC())
+	if err != nil {
+		return fmt.Errorf("verify sig: %w", err)
+	}
+	logger.Info().
+		Bool("isValid", isValid).Bytes("data", block.Hash().Bytes()).Msg("verify")
+
 	i, err := v.zkOracleContract.GetAggregator(
 		&bind.CallOpts{
 			Context: ctx,
@@ -89,12 +97,13 @@ func (v *Validator) HandleBlockRequestedEvent(ctx context.Context, event *ZKOrac
 
 	client := NewOracleNodeClient(conn)
 	_, err = client.SendVote(ctx, &SendVoteRequest{
+		Index:     v.index,
 		Request:   event.Request.Uint64(),
 		BlockHash: block.Hash().Bytes(),
 		Signature: sig,
 	})
 	if err != nil {
-		return fmt.Errorf("get ip addr: %w", err)
+		return fmt.Errorf("send vote: %w", err)
 	}
 
 	logger.Info().

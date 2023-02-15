@@ -1,0 +1,11 @@
+{
+  "index": 1,
+  "bindAddress": "127.0.0.1:25566",
+  "privateKey": "d83e1d6cd8831524f81713c515c89e840f55561a77d44372fb15d3a69e41d8a6b2711f16dd1d6e66a48b05e8d340eea58a6d913c2fb2ee2d4f07705ec382e689b2bba0fdada848d82d3c32aecaf44d3a7fe9e5c18cec5bb8394b6758250ea116",
+  "contractAddress": "9fE46736679d2D9a65F0992F2272dE9f3c7fa6e0",
+  "ethereum": {
+    "sourceAddress": "ws://127.0.0.1:8545",
+    "targetAddress": "ws://127.0.0.1:8545",
+    "privateKey": "ac0974bec39a17e36ba4a6b4d238ff944bacb478cbed5efcae784d7bf4f2ff80"
+  }
+}

@@ -4,9 +4,10 @@ package zkOracle;
 option go_package = ".;zkOracle";
 
 message SendVoteRequest {
-  uint64 request = 1;
-  bytes blockHash = 2;
-  bytes signature = 3;
+  uint64 index = 1;
+  uint64 request = 2;
+  bytes blockHash = 3;
+  bytes signature = 4;
 }
 
 message SendVoteResponse {

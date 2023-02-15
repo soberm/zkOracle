@@ -1,20 +1,19 @@
 package zkOracle
 
 import (
-	"encoding/binary"
 	"github.com/consensys/gnark-crypto/ecc/bn254/twistededwards/eddsa"
-	"github.com/consensys/gnark/frontend"
+	"github.com/ethereum/go-ethereum/common"
 	"math/big"
 )
 
 const (
-	voteSize = 8
+	voteSize = 32
 )
 
 type Vote struct {
 	index     uint64
 	request   *big.Int
-	blockHash frontend.Variable
+	blockHash common.Hash
 	sender    eddsa.PublicKey
 	signature eddsa.Signature
 }
@@ -22,6 +21,6 @@ type Vote struct {
 func (v *Vote) Serialize() []byte {
 	var b [voteSize]byte
 
-	binary.BigEndian.PutUint64(b[:voteSize], v.index)
+	copy(b[:common.HashLength], v.blockHash.Bytes())
 	return b[:]
 }

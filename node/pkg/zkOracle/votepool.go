@@ -1,6 +1,7 @@
 package zkOracle
 
 import (
+	"encoding/hex"
 	"errors"
 	"fmt"
 	"github.com/consensys/gnark-crypto/ecc/bn254/fr/mimc"
@@ -48,6 +49,13 @@ func (vp *VotePool) add(vote *Vote) error {
 }
 
 func (vp *VotePool) verifyVote(vote *Vote) (bool, error) {
+	logger.Info().
+		Uint64("requestNumber", vote.request.Uint64()).
+		Str("signature", hex.EncodeToString(vote.signature.Bytes())).
+		Str("blockHash", vote.blockHash.String()).
+		Bytes("data", vote.Serialize()).
+		Msg("verify vote")
+
 	isValid, err := vote.sender.Verify(vote.signature.Bytes(), vote.Serialize(), mimc.NewMiMC())
 	if err != nil {
 		return isValid, fmt.Errorf("verify signature: %w", err)
