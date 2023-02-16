@@ -27,13 +27,6 @@ func (n *Node) SendVote(ctx context.Context, request *SendVoteRequest) (*SendVot
 		return nil, status.Errorf(codes.Internal, "bytes to sig: %v", err)
 	}
 
-	x := account.PublicKey.A.X.String()
-	y := account.PublicKey.A.Y.String()
-	logger.Info().
-		Str("pubKeyX", x).
-		Str("pubKeyY", y).
-		Msg("send vote public key")
-
 	err = n.votePool.add(&Vote{
 		index:     request.Index,
 		request:   big.NewInt(int64(request.Request)),

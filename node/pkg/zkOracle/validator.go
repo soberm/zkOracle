@@ -63,13 +63,6 @@ func (v *Validator) HandleBlockRequestedEvent(ctx context.Context, event *ZKOrac
 		return fmt.Errorf("sign: %w", err)
 	}
 
-	isValid, err := v.privateKey.PublicKey.Verify(sig, block.Hash().Bytes(), mimc.NewMiMC())
-	if err != nil {
-		return fmt.Errorf("verify sig: %w", err)
-	}
-	logger.Info().
-		Bool("isValid", isValid).Bytes("data", block.Hash().Bytes()).Msg("verify")
-
 	i, err := v.zkOracleContract.GetAggregator(
 		&bind.CallOpts{
 			Context: ctx,
