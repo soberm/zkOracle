@@ -1,13 +1,14 @@
 package zkOracle
 
 import (
+	"encoding/binary"
 	"github.com/consensys/gnark-crypto/ecc/bn254/twistededwards/eddsa"
 	"github.com/ethereum/go-ethereum/common"
 	"math/big"
 )
 
 const (
-	voteSize = 32
+	voteSize = 40
 )
 
 type Vote struct {
@@ -20,7 +21,7 @@ type Vote struct {
 
 func (v *Vote) Serialize() []byte {
 	var b [voteSize]byte
-
-	copy(b[:common.HashLength], v.blockHash.Bytes())
+	binary.BigEndian.PutUint64(b[:8], v.index)
+	copy(b[8:common.HashLength], v.blockHash.Bytes())
 	return b[:]
 }

@@ -58,7 +58,12 @@ func (v *Validator) HandleBlockRequestedEvent(ctx context.Context, event *ZKOrac
 		return fmt.Errorf("block not confirmed")
 	}
 
-	sig, err := v.privateKey.Sign(block.Hash().Bytes(), mimc.NewMiMC())
+	vote := &Vote{
+		index:     v.index,
+		blockHash: block.Hash(),
+	}
+
+	sig, err := v.privateKey.Sign(vote.Serialize(), mimc.NewMiMC())
 	if err != nil {
 		return fmt.Errorf("sign: %w", err)
 	}

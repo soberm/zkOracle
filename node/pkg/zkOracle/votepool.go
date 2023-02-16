@@ -11,14 +11,16 @@ import (
 
 type VotePool struct {
 	sync.RWMutex
-	votes     map[common.Hash]*Vote
-	voteCount map[uint64]uint64
+	votes      map[common.Hash]*Vote
+	voteHashes map[uint64][]*common.Hash
+	sink       chan uint64
 }
 
 func NewVotePool() *VotePool {
 	return &VotePool{
-		votes:     make(map[common.Hash]*Vote),
-		voteCount: make(map[uint64]uint64),
+		votes:      make(map[common.Hash]*Vote),
+		voteHashes: make(map[uint64][]*common.Hash),
+		sink:       make(chan uint64),
 	}
 }
 
@@ -41,8 +43,20 @@ func (vp *VotePool) add(vote *Vote) error {
 	}
 
 	voteHash := crypto.Keccak256Hash(vote.Serialize())
+	_, ok := vp.votes[voteHash]
+	if ok {
+		return fmt.Errorf("vote already exists")
+	}
+	
+	vp.voteHashes[vote.request.Uint64()] = append(vp.voteHashes[vote.request.Uint64()], &voteHash)
 	vp.votes[voteHash] = vote
-	vp.voteCount[vote.request.Uint64()] += 1
+
+	if len(vp.voteHashes[vote.request.Uint64()]) == nbAccounts {
+		select {
+		case vp.sink <- vote.request.Uint64():
+		default:
+		}
+	}
 
 	return nil
 }

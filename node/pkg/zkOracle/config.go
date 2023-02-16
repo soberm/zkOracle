@@ -6,6 +6,7 @@ type Config struct {
 	PrivateKey      string
 	ContractAddress string
 	Ethereum        EthereumConfig
+	ZKP             ProofConfig
 }
 
 type ContractsConfig struct {
@@ -18,4 +19,10 @@ type EthereumConfig struct {
 	SourceAddress string
 	TargetAddress string
 	PrivateKey    string
+}
+
+type ProofConfig struct {
+	ProvingKey   string
+	VerifyingKey string
+	R1CS         string
 }

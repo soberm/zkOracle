@@ -5,8 +5,10 @@ import (
 	"crypto/ecdsa"
 	"encoding/hex"
 	"fmt"
+	"github.com/consensys/gnark-crypto/ecc"
 	"github.com/consensys/gnark-crypto/ecc/bn254/fr/mimc"
 	"github.com/consensys/gnark-crypto/ecc/bn254/twistededwards/eddsa"
+	"github.com/consensys/gnark/backend/groth16"
 	"github.com/ethereum/go-ethereum/accounts/abi/bind"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/crypto"
@@ -14,6 +16,7 @@ import (
 	"google.golang.org/grpc"
 	"math/big"
 	"net"
+	"os"
 )
 
 type Node struct {
@@ -55,7 +58,42 @@ func NewNode(config *Config) (*Node, error) {
 	}
 
 	validator := NewValidator(config.Index, ethClient, contract, eddsaPrivateKey)
-	aggregator := NewAggregator()
+
+	f, err := os.Open(config.ZKP.R1CS)
+	if err != nil {
+		return nil, fmt.Errorf("open r1cs file: %w", f)
+	}
+
+	constraintSystem := groth16.NewCS(ecc.BN254)
+	_, err = constraintSystem.ReadFrom(f)
+	if err != nil {
+		return nil, fmt.Errorf("read r1cs file: %w", f)
+	}
+
+	f, err = os.Open(config.ZKP.ProvingKey)
+	if err != nil {
+		return nil, fmt.Errorf("open pk file: %w", f)
+	}
+
+	pk := groth16.NewProvingKey(ecc.BN254)
+	_, err = pk.ReadFrom(f)
+	if err != nil {
+		return nil, fmt.Errorf("read pk file: %w", f)
+	}
+
+	f, err = os.Open(config.ZKP.VerifyingKey)
+	if err != nil {
+		return nil, fmt.Errorf("open vk file: %w", f)
+	}
+
+	vk := groth16.NewVerifyingKey(ecc.BN254)
+	_, err = vk.ReadFrom(f)
+	if err != nil {
+		return nil, fmt.Errorf("read vk file: %w", f)
+	}
+
+	votePool := NewVotePool()
+	aggregator := NewAggregator(votePool, constraintSystem, pk, vk)
 
 	chainID, err := ethClient.ChainID(context.Background())
 	if err != nil {
@@ -87,7 +125,7 @@ func NewNode(config *Config) (*Node, error) {
 		ethClient:       ethClient,
 		state:           state,
 		stateSync:       stateSync,
-		votePool:        NewVotePool(),
+		votePool:        votePool,
 	}
 	RegisterOracleNodeServer(server, node)
 
