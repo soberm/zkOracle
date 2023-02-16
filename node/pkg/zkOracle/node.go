@@ -72,7 +72,7 @@ func NewNode(config *Config) (*Node, error) {
 		return nil, fmt.Errorf("create state: %w", err)
 	}
 
-	stateSync := NewStateSync(state, contract)
+	stateSync := NewStateSync(state, contract, ethClient)
 
 	server := grpc.NewServer()
 
