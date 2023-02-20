@@ -9,6 +9,8 @@ import (
 	"github.com/consensys/gnark-crypto/ecc/bn254/fr/mimc"
 	"github.com/consensys/gnark-crypto/ecc/bn254/twistededwards/eddsa"
 	"github.com/consensys/gnark/backend/groth16"
+	"github.com/consensys/gnark/frontend"
+	"github.com/consensys/gnark/frontend/cs/r1cs"
 	"github.com/ethereum/go-ethereum/accounts/abi/bind"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/crypto"
@@ -59,41 +61,41 @@ func NewNode(config *Config) (*Node, error) {
 
 	validator := NewValidator(config.Index, ethClient, contract, eddsaPrivateKey)
 
-	f, err := os.Open(config.ZKP.R1CS)
+	var circuit AggregationCircuit
+	constraintSystem, err := frontend.Compile(ecc.BN254, r1cs.NewBuilder, &circuit)
 	if err != nil {
-		return nil, fmt.Errorf("open r1cs file: %w", f)
+		return nil, fmt.Errorf("compile: %w", err)
 	}
 
-	constraintSystem := groth16.NewCS(ecc.BN254)
-	_, err = constraintSystem.ReadFrom(f)
+	pkFile, err := os.Open(config.ZKP.ProvingKey)
 	if err != nil {
-		return nil, fmt.Errorf("read r1cs file: %w", f)
-	}
-
-	f, err = os.Open(config.ZKP.ProvingKey)
-	if err != nil {
-		return nil, fmt.Errorf("open pk file: %w", f)
+		return nil, fmt.Errorf("open pk file: %w", err)
 	}
 
 	pk := groth16.NewProvingKey(ecc.BN254)
-	_, err = pk.ReadFrom(f)
+	_, err = pk.ReadFrom(pkFile)
 	if err != nil {
-		return nil, fmt.Errorf("read pk file: %w", f)
+		return nil, fmt.Errorf("read from pk file: %w", err)
 	}
 
-	f, err = os.Open(config.ZKP.VerifyingKey)
+	vkFile, err := os.Open(config.ZKP.VerifyingKey)
 	if err != nil {
-		return nil, fmt.Errorf("open vk file: %w", f)
+		return nil, fmt.Errorf("open vk file: %w", err)
 	}
 
 	vk := groth16.NewVerifyingKey(ecc.BN254)
-	_, err = vk.ReadFrom(f)
+	_, err = vk.ReadFrom(vkFile)
 	if err != nil {
-		return nil, fmt.Errorf("read vk file: %w", f)
+		return nil, fmt.Errorf("read from vk file: %w", err)
+	}
+
+	state, err := NewState(mimc.NewMiMC(), nil)
+	if err != nil {
+		return nil, fmt.Errorf("create state: %w", err)
 	}
 
 	votePool := NewVotePool()
-	aggregator := NewAggregator(votePool, constraintSystem, pk, vk)
+	aggregator := NewAggregator(config.Index, eddsaPrivateKey, state, votePool, constraintSystem, pk, vk)
 
 	chainID, err := ethClient.ChainID(context.Background())
 	if err != nil {
@@ -103,11 +105,6 @@ func NewNode(config *Config) (*Node, error) {
 	ecdsaPrivateKey, err := crypto.HexToECDSA(config.Ethereum.PrivateKey)
 	if err != nil {
 		return nil, fmt.Errorf("ecdsa private key: %w", err)
-	}
-
-	state, err := NewState(mimc.NewMiMC(), nil)
-	if err != nil {
-		return nil, fmt.Errorf("create state: %w", err)
 	}
 
 	stateSync := NewStateSync(state, contract, ethClient)

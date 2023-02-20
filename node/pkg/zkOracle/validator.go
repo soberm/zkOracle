@@ -59,11 +59,16 @@ func (v *Validator) HandleBlockRequestedEvent(ctx context.Context, event *ZKOrac
 	}
 
 	vote := &Vote{
-		index:     v.index,
-		blockHash: block.Hash(),
+		Index:     v.index,
+		Request:   event.Request,
+		BlockHash: block.Hash(),
 	}
 
-	sig, err := v.privateKey.Sign(vote.Serialize(), mimc.NewMiMC())
+	hasher := mimc.NewMiMC()
+	hasher.Write(vote.Serialize())
+	msg := hasher.Sum(nil)
+
+	sig, err := v.privateKey.Sign(msg, mimc.NewMiMC())
 	if err != nil {
 		return fmt.Errorf("sign: %w", err)
 	}
@@ -84,7 +89,7 @@ func (v *Validator) HandleBlockRequestedEvent(ctx context.Context, event *ZKOrac
 
 	logger.Info().
 		Uint64("requestNumber", event.Request.Uint64()).
-		Uint64("index", i.Uint64()).
+		Uint64("Index", i.Uint64()).
 		Str("ipAddr", addr).
 		Msg("sending vote to aggregator")
 

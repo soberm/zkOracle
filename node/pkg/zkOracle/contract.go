@@ -40,7 +40,7 @@ type ZKOraclePublicKey struct {
 }
 
 // ZKOracleContractABI is the input ABI used to generate the binding from.
-const ZKOracleContractABI = "[{\"inputs\":[{\"internalType\":\"address\",\"name\":\"merkleTreeAddress\",\"type\":\"address\"},{\"internalType\":\"uint256\",\"name\":\"_seedX\",\"type\":\"uint256\"},{\"internalType\":\"uint256\",\"name\":\"_seedY\",\"type\":\"uint256\"}],\"stateMutability\":\"nonpayable\",\"type\":\"constructor\"},{\"anonymous\":false,\"inputs\":[{\"indexed\":false,\"internalType\":\"uint256\",\"name\":\"number\",\"type\":\"uint256\"},{\"indexed\":false,\"internalType\":\"uint256\",\"name\":\"request\",\"type\":\"uint256\"}],\"name\":\"BlockRequested\",\"type\":\"event\"},{\"anonymous\":false,\"inputs\":[{\"indexed\":true,\"internalType\":\"uint256\",\"name\":\"request\",\"type\":\"uint256\"}],\"name\":\"BlockSubmitted\",\"type\":\"event\"},{\"anonymous\":false,\"inputs\":[{\"indexed\":true,\"internalType\":\"address\",\"name\":\"sender\",\"type\":\"address\"}],\"name\":\"Exiting\",\"type\":\"event\"},{\"anonymous\":false,\"inputs\":[{\"indexed\":false,\"internalType\":\"address\",\"name\":\"sender\",\"type\":\"address\"},{\"indexed\":false,\"internalType\":\"uint256\",\"name\":\"index\",\"type\":\"uint256\"},{\"components\":[{\"internalType\":\"uint256\",\"name\":\"x\",\"type\":\"uint256\"},{\"internalType\":\"uint256\",\"name\":\"y\",\"type\":\"uint256\"}],\"indexed\":false,\"internalType\":\"structZKOracle.PublicKey\",\"name\":\"pubkey\",\"type\":\"tuple\"},{\"indexed\":false,\"internalType\":\"uint256\",\"name\":\"value\",\"type\":\"uint256\"}],\"name\":\"Registered\",\"type\":\"event\"},{\"anonymous\":false,\"inputs\":[{\"indexed\":true,\"internalType\":\"address\",\"name\":\"sender\",\"type\":\"address\"},{\"indexed\":true,\"internalType\":\"address\",\"name\":\"replaced\",\"type\":\"address\"}],\"name\":\"Replaced\",\"type\":\"event\"},{\"anonymous\":false,\"inputs\":[{\"indexed\":true,\"internalType\":\"address\",\"name\":\"sender\",\"type\":\"address\"}],\"name\":\"Withdrawn\",\"type\":\"event\"},{\"inputs\":[{\"components\":[{\"internalType\":\"uint256\",\"name\":\"index\",\"type\":\"uint256\"},{\"components\":[{\"internalType\":\"uint256\",\"name\":\"x\",\"type\":\"uint256\"},{\"internalType\":\"uint256\",\"name\":\"y\",\"type\":\"uint256\"}],\"internalType\":\"structZKOracle.PublicKey\",\"name\":\"pubKey\",\"type\":\"tuple\"},{\"internalType\":\"uint256\",\"name\":\"balance\",\"type\":\"uint256\"}],\"internalType\":\"structZKOracle.Account\",\"name\":\"account\",\"type\":\"tuple\"},{\"internalType\":\"uint256[]\",\"name\":\"path\",\"type\":\"uint256[]\"},{\"internalType\":\"uint256[]\",\"name\":\"helper\",\"type\":\"uint256[]\"}],\"name\":\"exit\",\"outputs\":[],\"stateMutability\":\"nonpayable\",\"type\":\"function\"},{\"inputs\":[],\"name\":\"exitDelay\",\"outputs\":[{\"internalType\":\"uint256\",\"name\":\"\",\"type\":\"uint256\"}],\"stateMutability\":\"view\",\"type\":\"function\"},{\"inputs\":[],\"name\":\"getAggregator\",\"outputs\":[{\"internalType\":\"uint256\",\"name\":\"\",\"type\":\"uint256\"}],\"stateMutability\":\"view\",\"type\":\"function\"},{\"inputs\":[{\"internalType\":\"uint256\",\"name\":\"number\",\"type\":\"uint256\"}],\"name\":\"getBlockByNumber\",\"outputs\":[],\"stateMutability\":\"payable\",\"type\":\"function\"},{\"inputs\":[{\"internalType\":\"address\",\"name\":\"addr\",\"type\":\"address\"}],\"name\":\"getExitTime\",\"outputs\":[{\"internalType\":\"uint256\",\"name\":\"\",\"type\":\"uint256\"}],\"stateMutability\":\"view\",\"type\":\"function\"},{\"inputs\":[{\"internalType\":\"uint256\",\"name\":\"index\",\"type\":\"uint256\"}],\"name\":\"getIPAddress\",\"outputs\":[{\"internalType\":\"string\",\"name\":\"\",\"type\":\"string\"}],\"stateMutability\":\"view\",\"type\":\"function\"},{\"inputs\":[{\"components\":[{\"internalType\":\"uint256\",\"name\":\"index\",\"type\":\"uint256\"},{\"components\":[{\"internalType\":\"uint256\",\"name\":\"x\",\"type\":\"uint256\"},{\"internalType\":\"uint256\",\"name\":\"y\",\"type\":\"uint256\"}],\"internalType\":\"structZKOracle.PublicKey\",\"name\":\"pubKey\",\"type\":\"tuple\"},{\"internalType\":\"uint256\",\"name\":\"balance\",\"type\":\"uint256\"}],\"internalType\":\"structZKOracle.Account\",\"name\":\"account\",\"type\":\"tuple\"}],\"name\":\"hashAccount\",\"outputs\":[{\"internalType\":\"uint256\",\"name\":\"\",\"type\":\"uint256\"}],\"stateMutability\":\"view\",\"type\":\"function\"},{\"inputs\":[{\"components\":[{\"internalType\":\"uint256\",\"name\":\"x\",\"type\":\"uint256\"},{\"internalType\":\"uint256\",\"name\":\"y\",\"type\":\"uint256\"}],\"internalType\":\"structZKOracle.PublicKey\",\"name\":\"publicKey\",\"type\":\"tuple\"},{\"internalType\":\"string\",\"name\":\"ip\",\"type\":\"string\"}],\"name\":\"register\",\"outputs\":[],\"stateMutability\":\"payable\",\"type\":\"function\"},{\"inputs\":[{\"components\":[{\"internalType\":\"uint256\",\"name\":\"x\",\"type\":\"uint256\"},{\"internalType\":\"uint256\",\"name\":\"y\",\"type\":\"uint256\"}],\"internalType\":\"structZKOracle.PublicKey\",\"name\":\"publicKey\",\"type\":\"tuple\"},{\"components\":[{\"internalType\":\"uint256\",\"name\":\"index\",\"type\":\"uint256\"},{\"components\":[{\"internalType\":\"uint256\",\"name\":\"x\",\"type\":\"uint256\"},{\"internalType\":\"uint256\",\"name\":\"y\",\"type\":\"uint256\"}],\"internalType\":\"structZKOracle.PublicKey\",\"name\":\"pubKey\",\"type\":\"tuple\"},{\"internalType\":\"uint256\",\"name\":\"balance\",\"type\":\"uint256\"}],\"internalType\":\"structZKOracle.Account\",\"name\":\"toReplace\",\"type\":\"tuple\"},{\"internalType\":\"uint256[]\",\"name\":\"path\",\"type\":\"uint256[]\"},{\"internalType\":\"uint256[]\",\"name\":\"helper\",\"type\":\"uint256[]\"}],\"name\":\"replace\",\"outputs\":[],\"stateMutability\":\"payable\",\"type\":\"function\"},{\"inputs\":[{\"internalType\":\"uint256\",\"name\":\"request\",\"type\":\"uint256\"},{\"internalType\":\"bytes32\",\"name\":\"blockHash\",\"type\":\"bytes32\"}],\"name\":\"submitBlock\",\"outputs\":[],\"stateMutability\":\"nonpayable\",\"type\":\"function\"},{\"inputs\":[{\"components\":[{\"internalType\":\"uint256\",\"name\":\"index\",\"type\":\"uint256\"},{\"components\":[{\"internalType\":\"uint256\",\"name\":\"x\",\"type\":\"uint256\"},{\"internalType\":\"uint256\",\"name\":\"y\",\"type\":\"uint256\"}],\"internalType\":\"structZKOracle.PublicKey\",\"name\":\"pubKey\",\"type\":\"tuple\"},{\"internalType\":\"uint256\",\"name\":\"balance\",\"type\":\"uint256\"}],\"internalType\":\"structZKOracle.Account\",\"name\":\"account\",\"type\":\"tuple\"},{\"internalType\":\"uint256[]\",\"name\":\"path\",\"type\":\"uint256[]\"},{\"internalType\":\"uint256[]\",\"name\":\"helper\",\"type\":\"uint256[]\"}],\"name\":\"withdraw\",\"outputs\":[],\"stateMutability\":\"nonpayable\",\"type\":\"function\"}]"
+const ZKOracleContractABI = "[{\"inputs\":[{\"internalType\":\"address\",\"name\":\"merkleTreeAddress\",\"type\":\"address\"},{\"internalType\":\"uint256\",\"name\":\"_seedX\",\"type\":\"uint256\"},{\"internalType\":\"uint256\",\"name\":\"_seedY\",\"type\":\"uint256\"}],\"stateMutability\":\"nonpayable\",\"type\":\"constructor\"},{\"anonymous\":false,\"inputs\":[{\"indexed\":false,\"internalType\":\"uint256\",\"name\":\"number\",\"type\":\"uint256\"},{\"indexed\":false,\"internalType\":\"uint256\",\"name\":\"Request\",\"type\":\"uint256\"}],\"name\":\"BlockRequested\",\"type\":\"event\"},{\"anonymous\":false,\"inputs\":[{\"indexed\":true,\"internalType\":\"uint256\",\"name\":\"Request\",\"type\":\"uint256\"}],\"name\":\"BlockSubmitted\",\"type\":\"event\"},{\"anonymous\":false,\"inputs\":[{\"indexed\":true,\"internalType\":\"address\",\"name\":\"Sender\",\"type\":\"address\"}],\"name\":\"Exiting\",\"type\":\"event\"},{\"anonymous\":false,\"inputs\":[{\"indexed\":false,\"internalType\":\"address\",\"name\":\"Sender\",\"type\":\"address\"},{\"indexed\":false,\"internalType\":\"uint256\",\"name\":\"Index\",\"type\":\"uint256\"},{\"components\":[{\"internalType\":\"uint256\",\"name\":\"x\",\"type\":\"uint256\"},{\"internalType\":\"uint256\",\"name\":\"y\",\"type\":\"uint256\"}],\"indexed\":false,\"internalType\":\"structZKOracle.PublicKey\",\"name\":\"pubkey\",\"type\":\"tuple\"},{\"indexed\":false,\"internalType\":\"uint256\",\"name\":\"value\",\"type\":\"uint256\"}],\"name\":\"Registered\",\"type\":\"event\"},{\"anonymous\":false,\"inputs\":[{\"indexed\":true,\"internalType\":\"address\",\"name\":\"Sender\",\"type\":\"address\"},{\"indexed\":true,\"internalType\":\"address\",\"name\":\"replaced\",\"type\":\"address\"}],\"name\":\"Replaced\",\"type\":\"event\"},{\"anonymous\":false,\"inputs\":[{\"indexed\":true,\"internalType\":\"address\",\"name\":\"Sender\",\"type\":\"address\"}],\"name\":\"Withdrawn\",\"type\":\"event\"},{\"inputs\":[{\"components\":[{\"internalType\":\"uint256\",\"name\":\"Index\",\"type\":\"uint256\"},{\"components\":[{\"internalType\":\"uint256\",\"name\":\"x\",\"type\":\"uint256\"},{\"internalType\":\"uint256\",\"name\":\"y\",\"type\":\"uint256\"}],\"internalType\":\"structZKOracle.PublicKey\",\"name\":\"pubKey\",\"type\":\"tuple\"},{\"internalType\":\"uint256\",\"name\":\"balance\",\"type\":\"uint256\"}],\"internalType\":\"structZKOracle.Account\",\"name\":\"account\",\"type\":\"tuple\"},{\"internalType\":\"uint256[]\",\"name\":\"path\",\"type\":\"uint256[]\"},{\"internalType\":\"uint256[]\",\"name\":\"helper\",\"type\":\"uint256[]\"}],\"name\":\"exit\",\"outputs\":[],\"stateMutability\":\"nonpayable\",\"type\":\"function\"},{\"inputs\":[],\"name\":\"exitDelay\",\"outputs\":[{\"internalType\":\"uint256\",\"name\":\"\",\"type\":\"uint256\"}],\"stateMutability\":\"view\",\"type\":\"function\"},{\"inputs\":[],\"name\":\"getAggregator\",\"outputs\":[{\"internalType\":\"uint256\",\"name\":\"\",\"type\":\"uint256\"}],\"stateMutability\":\"view\",\"type\":\"function\"},{\"inputs\":[{\"internalType\":\"uint256\",\"name\":\"number\",\"type\":\"uint256\"}],\"name\":\"getBlockByNumber\",\"outputs\":[],\"stateMutability\":\"payable\",\"type\":\"function\"},{\"inputs\":[{\"internalType\":\"address\",\"name\":\"addr\",\"type\":\"address\"}],\"name\":\"getExitTime\",\"outputs\":[{\"internalType\":\"uint256\",\"name\":\"\",\"type\":\"uint256\"}],\"stateMutability\":\"view\",\"type\":\"function\"},{\"inputs\":[{\"internalType\":\"uint256\",\"name\":\"Index\",\"type\":\"uint256\"}],\"name\":\"getIPAddress\",\"outputs\":[{\"internalType\":\"string\",\"name\":\"\",\"type\":\"string\"}],\"stateMutability\":\"view\",\"type\":\"function\"},{\"inputs\":[{\"components\":[{\"internalType\":\"uint256\",\"name\":\"Index\",\"type\":\"uint256\"},{\"components\":[{\"internalType\":\"uint256\",\"name\":\"x\",\"type\":\"uint256\"},{\"internalType\":\"uint256\",\"name\":\"y\",\"type\":\"uint256\"}],\"internalType\":\"structZKOracle.PublicKey\",\"name\":\"pubKey\",\"type\":\"tuple\"},{\"internalType\":\"uint256\",\"name\":\"balance\",\"type\":\"uint256\"}],\"internalType\":\"structZKOracle.Account\",\"name\":\"account\",\"type\":\"tuple\"}],\"name\":\"hashAccount\",\"outputs\":[{\"internalType\":\"uint256\",\"name\":\"\",\"type\":\"uint256\"}],\"stateMutability\":\"view\",\"type\":\"function\"},{\"inputs\":[{\"components\":[{\"internalType\":\"uint256\",\"name\":\"x\",\"type\":\"uint256\"},{\"internalType\":\"uint256\",\"name\":\"y\",\"type\":\"uint256\"}],\"internalType\":\"structZKOracle.PublicKey\",\"name\":\"publicKey\",\"type\":\"tuple\"},{\"internalType\":\"string\",\"name\":\"ip\",\"type\":\"string\"}],\"name\":\"register\",\"outputs\":[],\"stateMutability\":\"payable\",\"type\":\"function\"},{\"inputs\":[{\"components\":[{\"internalType\":\"uint256\",\"name\":\"x\",\"type\":\"uint256\"},{\"internalType\":\"uint256\",\"name\":\"y\",\"type\":\"uint256\"}],\"internalType\":\"structZKOracle.PublicKey\",\"name\":\"publicKey\",\"type\":\"tuple\"},{\"components\":[{\"internalType\":\"uint256\",\"name\":\"Index\",\"type\":\"uint256\"},{\"components\":[{\"internalType\":\"uint256\",\"name\":\"x\",\"type\":\"uint256\"},{\"internalType\":\"uint256\",\"name\":\"y\",\"type\":\"uint256\"}],\"internalType\":\"structZKOracle.PublicKey\",\"name\":\"pubKey\",\"type\":\"tuple\"},{\"internalType\":\"uint256\",\"name\":\"balance\",\"type\":\"uint256\"}],\"internalType\":\"structZKOracle.Account\",\"name\":\"toReplace\",\"type\":\"tuple\"},{\"internalType\":\"uint256[]\",\"name\":\"path\",\"type\":\"uint256[]\"},{\"internalType\":\"uint256[]\",\"name\":\"helper\",\"type\":\"uint256[]\"}],\"name\":\"replace\",\"outputs\":[],\"stateMutability\":\"payable\",\"type\":\"function\"},{\"inputs\":[{\"internalType\":\"uint256\",\"name\":\"Request\",\"type\":\"uint256\"},{\"internalType\":\"bytes32\",\"name\":\"BlockHash\",\"type\":\"bytes32\"}],\"name\":\"submitBlock\",\"outputs\":[],\"stateMutability\":\"nonpayable\",\"type\":\"function\"},{\"inputs\":[{\"components\":[{\"internalType\":\"uint256\",\"name\":\"Index\",\"type\":\"uint256\"},{\"components\":[{\"internalType\":\"uint256\",\"name\":\"x\",\"type\":\"uint256\"},{\"internalType\":\"uint256\",\"name\":\"y\",\"type\":\"uint256\"}],\"internalType\":\"structZKOracle.PublicKey\",\"name\":\"pubKey\",\"type\":\"tuple\"},{\"internalType\":\"uint256\",\"name\":\"balance\",\"type\":\"uint256\"}],\"internalType\":\"structZKOracle.Account\",\"name\":\"account\",\"type\":\"tuple\"},{\"internalType\":\"uint256[]\",\"name\":\"path\",\"type\":\"uint256[]\"},{\"internalType\":\"uint256[]\",\"name\":\"helper\",\"type\":\"uint256[]\"}],\"name\":\"withdraw\",\"outputs\":[],\"stateMutability\":\"nonpayable\",\"type\":\"function\"}]"
 
 // ZKOracleContract is an auto generated Go binding around an Ethereum contract.
 type ZKOracleContract struct {
@@ -279,7 +279,7 @@ func (_ZKOracleContract *ZKOracleContractCallerSession) GetExitTime(addr common.
 
 // GetIPAddress is a free data retrieval call binding the contract method 0xefca2af7.
 //
-// Solidity: function getIPAddress(uint256 index) view returns(string)
+// Solidity: function getIPAddress(uint256 Index) view returns(string)
 func (_ZKOracleContract *ZKOracleContractCaller) GetIPAddress(opts *bind.CallOpts, index *big.Int) (string, error) {
 	var out []interface{}
 	err := _ZKOracleContract.contract.Call(opts, &out, "getIPAddress", index)
@@ -296,14 +296,14 @@ func (_ZKOracleContract *ZKOracleContractCaller) GetIPAddress(opts *bind.CallOpt
 
 // GetIPAddress is a free data retrieval call binding the contract method 0xefca2af7.
 //
-// Solidity: function getIPAddress(uint256 index) view returns(string)
+// Solidity: function getIPAddress(uint256 Index) view returns(string)
 func (_ZKOracleContract *ZKOracleContractSession) GetIPAddress(index *big.Int) (string, error) {
 	return _ZKOracleContract.Contract.GetIPAddress(&_ZKOracleContract.CallOpts, index)
 }
 
 // GetIPAddress is a free data retrieval call binding the contract method 0xefca2af7.
 //
-// Solidity: function getIPAddress(uint256 index) view returns(string)
+// Solidity: function getIPAddress(uint256 Index) view returns(string)
 func (_ZKOracleContract *ZKOracleContractCallerSession) GetIPAddress(index *big.Int) (string, error) {
 	return _ZKOracleContract.Contract.GetIPAddress(&_ZKOracleContract.CallOpts, index)
 }
@@ -425,21 +425,21 @@ func (_ZKOracleContract *ZKOracleContractTransactorSession) Replace(publicKey ZK
 
 // SubmitBlock is a paid mutator transaction binding the contract method 0x149be19f.
 //
-// Solidity: function submitBlock(uint256 request, bytes32 blockHash) returns()
+// Solidity: function submitBlock(uint256 Request, bytes32 BlockHash) returns()
 func (_ZKOracleContract *ZKOracleContractTransactor) SubmitBlock(opts *bind.TransactOpts, request *big.Int, blockHash [32]byte) (*types.Transaction, error) {
 	return _ZKOracleContract.contract.Transact(opts, "submitBlock", request, blockHash)
 }
 
 // SubmitBlock is a paid mutator transaction binding the contract method 0x149be19f.
 //
-// Solidity: function submitBlock(uint256 request, bytes32 blockHash) returns()
+// Solidity: function submitBlock(uint256 Request, bytes32 BlockHash) returns()
 func (_ZKOracleContract *ZKOracleContractSession) SubmitBlock(request *big.Int, blockHash [32]byte) (*types.Transaction, error) {
 	return _ZKOracleContract.Contract.SubmitBlock(&_ZKOracleContract.TransactOpts, request, blockHash)
 }
 
 // SubmitBlock is a paid mutator transaction binding the contract method 0x149be19f.
 //
-// Solidity: function submitBlock(uint256 request, bytes32 blockHash) returns()
+// Solidity: function submitBlock(uint256 Request, bytes32 BlockHash) returns()
 func (_ZKOracleContract *ZKOracleContractTransactorSession) SubmitBlock(request *big.Int, blockHash [32]byte) (*types.Transaction, error) {
 	return _ZKOracleContract.Contract.SubmitBlock(&_ZKOracleContract.TransactOpts, request, blockHash)
 }
@@ -541,7 +541,7 @@ type ZKOracleContractBlockRequested struct {
 
 // FilterBlockRequested is a free log retrieval operation binding the contract event 0x91ad2fc61c3d1a0988fc84b3e15d8a97480fadfe6743526d7bc0116257e842e9.
 //
-// Solidity: event BlockRequested(uint256 number, uint256 request)
+// Solidity: event BlockRequested(uint256 number, uint256 Request)
 func (_ZKOracleContract *ZKOracleContractFilterer) FilterBlockRequested(opts *bind.FilterOpts) (*ZKOracleContractBlockRequestedIterator, error) {
 
 	logs, sub, err := _ZKOracleContract.contract.FilterLogs(opts, "BlockRequested")
@@ -553,7 +553,7 @@ func (_ZKOracleContract *ZKOracleContractFilterer) FilterBlockRequested(opts *bi
 
 // WatchBlockRequested is a free log subscription operation binding the contract event 0x91ad2fc61c3d1a0988fc84b3e15d8a97480fadfe6743526d7bc0116257e842e9.
 //
-// Solidity: event BlockRequested(uint256 number, uint256 request)
+// Solidity: event BlockRequested(uint256 number, uint256 Request)
 func (_ZKOracleContract *ZKOracleContractFilterer) WatchBlockRequested(opts *bind.WatchOpts, sink chan<- *ZKOracleContractBlockRequested) (event.Subscription, error) {
 
 	logs, sub, err := _ZKOracleContract.contract.WatchLogs(opts, "BlockRequested")
@@ -590,7 +590,7 @@ func (_ZKOracleContract *ZKOracleContractFilterer) WatchBlockRequested(opts *bin
 
 // ParseBlockRequested is a log parse operation binding the contract event 0x91ad2fc61c3d1a0988fc84b3e15d8a97480fadfe6743526d7bc0116257e842e9.
 //
-// Solidity: event BlockRequested(uint256 number, uint256 request)
+// Solidity: event BlockRequested(uint256 number, uint256 Request)
 func (_ZKOracleContract *ZKOracleContractFilterer) ParseBlockRequested(log types.Log) (*ZKOracleContractBlockRequested, error) {
 	event := new(ZKOracleContractBlockRequested)
 	if err := _ZKOracleContract.contract.UnpackLog(event, "BlockRequested", log); err != nil {
@@ -675,7 +675,7 @@ type ZKOracleContractBlockSubmitted struct {
 
 // FilterBlockSubmitted is a free log retrieval operation binding the contract event 0x5a978f4723b249ccf79cd7a658a8601ce1ff8b89fc770251a6be35216351ce32.
 //
-// Solidity: event BlockSubmitted(uint256 indexed request)
+// Solidity: event BlockSubmitted(uint256 indexed Request)
 func (_ZKOracleContract *ZKOracleContractFilterer) FilterBlockSubmitted(opts *bind.FilterOpts, request []*big.Int) (*ZKOracleContractBlockSubmittedIterator, error) {
 
 	var requestRule []interface{}
@@ -692,7 +692,7 @@ func (_ZKOracleContract *ZKOracleContractFilterer) FilterBlockSubmitted(opts *bi
 
 // WatchBlockSubmitted is a free log subscription operation binding the contract event 0x5a978f4723b249ccf79cd7a658a8601ce1ff8b89fc770251a6be35216351ce32.
 //
-// Solidity: event BlockSubmitted(uint256 indexed request)
+// Solidity: event BlockSubmitted(uint256 indexed Request)
 func (_ZKOracleContract *ZKOracleContractFilterer) WatchBlockSubmitted(opts *bind.WatchOpts, sink chan<- *ZKOracleContractBlockSubmitted, request []*big.Int) (event.Subscription, error) {
 
 	var requestRule []interface{}
@@ -734,7 +734,7 @@ func (_ZKOracleContract *ZKOracleContractFilterer) WatchBlockSubmitted(opts *bin
 
 // ParseBlockSubmitted is a log parse operation binding the contract event 0x5a978f4723b249ccf79cd7a658a8601ce1ff8b89fc770251a6be35216351ce32.
 //
-// Solidity: event BlockSubmitted(uint256 indexed request)
+// Solidity: event BlockSubmitted(uint256 indexed Request)
 func (_ZKOracleContract *ZKOracleContractFilterer) ParseBlockSubmitted(log types.Log) (*ZKOracleContractBlockSubmitted, error) {
 	event := new(ZKOracleContractBlockSubmitted)
 	if err := _ZKOracleContract.contract.UnpackLog(event, "BlockSubmitted", log); err != nil {
@@ -819,7 +819,7 @@ type ZKOracleContractExiting struct {
 
 // FilterExiting is a free log retrieval operation binding the contract event 0x157b1813744b6e99f33bf9153540dd45bd711cbb7322dc3b9c43822687e94180.
 //
-// Solidity: event Exiting(address indexed sender)
+// Solidity: event Exiting(address indexed Sender)
 func (_ZKOracleContract *ZKOracleContractFilterer) FilterExiting(opts *bind.FilterOpts, sender []common.Address) (*ZKOracleContractExitingIterator, error) {
 
 	var senderRule []interface{}
@@ -836,7 +836,7 @@ func (_ZKOracleContract *ZKOracleContractFilterer) FilterExiting(opts *bind.Filt
 
 // WatchExiting is a free log subscription operation binding the contract event 0x157b1813744b6e99f33bf9153540dd45bd711cbb7322dc3b9c43822687e94180.
 //
-// Solidity: event Exiting(address indexed sender)
+// Solidity: event Exiting(address indexed Sender)
 func (_ZKOracleContract *ZKOracleContractFilterer) WatchExiting(opts *bind.WatchOpts, sink chan<- *ZKOracleContractExiting, sender []common.Address) (event.Subscription, error) {
 
 	var senderRule []interface{}
@@ -878,7 +878,7 @@ func (_ZKOracleContract *ZKOracleContractFilterer) WatchExiting(opts *bind.Watch
 
 // ParseExiting is a log parse operation binding the contract event 0x157b1813744b6e99f33bf9153540dd45bd711cbb7322dc3b9c43822687e94180.
 //
-// Solidity: event Exiting(address indexed sender)
+// Solidity: event Exiting(address indexed Sender)
 func (_ZKOracleContract *ZKOracleContractFilterer) ParseExiting(log types.Log) (*ZKOracleContractExiting, error) {
 	event := new(ZKOracleContractExiting)
 	if err := _ZKOracleContract.contract.UnpackLog(event, "Exiting", log); err != nil {
@@ -966,7 +966,7 @@ type ZKOracleContractRegistered struct {
 
 // FilterRegistered is a free log retrieval operation binding the contract event 0x195cbf3e686960cbbd84ae23e6bd39c44cf97ba7b9f1fbe6b06a84b2a7d7757c.
 //
-// Solidity: event Registered(address sender, uint256 index, (uint256,uint256) pubkey, uint256 value)
+// Solidity: event Registered(address Sender, uint256 Index, (uint256,uint256) pubkey, uint256 value)
 func (_ZKOracleContract *ZKOracleContractFilterer) FilterRegistered(opts *bind.FilterOpts) (*ZKOracleContractRegisteredIterator, error) {
 
 	logs, sub, err := _ZKOracleContract.contract.FilterLogs(opts, "Registered")
@@ -978,7 +978,7 @@ func (_ZKOracleContract *ZKOracleContractFilterer) FilterRegistered(opts *bind.F
 
 // WatchRegistered is a free log subscription operation binding the contract event 0x195cbf3e686960cbbd84ae23e6bd39c44cf97ba7b9f1fbe6b06a84b2a7d7757c.
 //
-// Solidity: event Registered(address sender, uint256 index, (uint256,uint256) pubkey, uint256 value)
+// Solidity: event Registered(address Sender, uint256 Index, (uint256,uint256) pubkey, uint256 value)
 func (_ZKOracleContract *ZKOracleContractFilterer) WatchRegistered(opts *bind.WatchOpts, sink chan<- *ZKOracleContractRegistered) (event.Subscription, error) {
 
 	logs, sub, err := _ZKOracleContract.contract.WatchLogs(opts, "Registered")
@@ -1015,7 +1015,7 @@ func (_ZKOracleContract *ZKOracleContractFilterer) WatchRegistered(opts *bind.Wa
 
 // ParseRegistered is a log parse operation binding the contract event 0x195cbf3e686960cbbd84ae23e6bd39c44cf97ba7b9f1fbe6b06a84b2a7d7757c.
 //
-// Solidity: event Registered(address sender, uint256 index, (uint256,uint256) pubkey, uint256 value)
+// Solidity: event Registered(address Sender, uint256 Index, (uint256,uint256) pubkey, uint256 value)
 func (_ZKOracleContract *ZKOracleContractFilterer) ParseRegistered(log types.Log) (*ZKOracleContractRegistered, error) {
 	event := new(ZKOracleContractRegistered)
 	if err := _ZKOracleContract.contract.UnpackLog(event, "Registered", log); err != nil {
@@ -1101,7 +1101,7 @@ type ZKOracleContractReplaced struct {
 
 // FilterReplaced is a free log retrieval operation binding the contract event 0x25f1f5bf76d36a31ec1b14caf64b580331299fd2037e3589426317b1cdfd4ecb.
 //
-// Solidity: event Replaced(address indexed sender, address indexed replaced)
+// Solidity: event Replaced(address indexed Sender, address indexed replaced)
 func (_ZKOracleContract *ZKOracleContractFilterer) FilterReplaced(opts *bind.FilterOpts, sender []common.Address, replaced []common.Address) (*ZKOracleContractReplacedIterator, error) {
 
 	var senderRule []interface{}
@@ -1122,7 +1122,7 @@ func (_ZKOracleContract *ZKOracleContractFilterer) FilterReplaced(opts *bind.Fil
 
 // WatchReplaced is a free log subscription operation binding the contract event 0x25f1f5bf76d36a31ec1b14caf64b580331299fd2037e3589426317b1cdfd4ecb.
 //
-// Solidity: event Replaced(address indexed sender, address indexed replaced)
+// Solidity: event Replaced(address indexed Sender, address indexed replaced)
 func (_ZKOracleContract *ZKOracleContractFilterer) WatchReplaced(opts *bind.WatchOpts, sink chan<- *ZKOracleContractReplaced, sender []common.Address, replaced []common.Address) (event.Subscription, error) {
 
 	var senderRule []interface{}
@@ -1168,7 +1168,7 @@ func (_ZKOracleContract *ZKOracleContractFilterer) WatchReplaced(opts *bind.Watc
 
 // ParseReplaced is a log parse operation binding the contract event 0x25f1f5bf76d36a31ec1b14caf64b580331299fd2037e3589426317b1cdfd4ecb.
 //
-// Solidity: event Replaced(address indexed sender, address indexed replaced)
+// Solidity: event Replaced(address indexed Sender, address indexed replaced)
 func (_ZKOracleContract *ZKOracleContractFilterer) ParseReplaced(log types.Log) (*ZKOracleContractReplaced, error) {
 	event := new(ZKOracleContractReplaced)
 	if err := _ZKOracleContract.contract.UnpackLog(event, "Replaced", log); err != nil {
@@ -1253,7 +1253,7 @@ type ZKOracleContractWithdrawn struct {
 
 // FilterWithdrawn is a free log retrieval operation binding the contract event 0xf45a04d08a70caa7eb4b747571305559ad9fdf4a093afd41506b35c8a306fa94.
 //
-// Solidity: event Withdrawn(address indexed sender)
+// Solidity: event Withdrawn(address indexed Sender)
 func (_ZKOracleContract *ZKOracleContractFilterer) FilterWithdrawn(opts *bind.FilterOpts, sender []common.Address) (*ZKOracleContractWithdrawnIterator, error) {
 
 	var senderRule []interface{}
@@ -1270,7 +1270,7 @@ func (_ZKOracleContract *ZKOracleContractFilterer) FilterWithdrawn(opts *bind.Fi
 
 // WatchWithdrawn is a free log subscription operation binding the contract event 0xf45a04d08a70caa7eb4b747571305559ad9fdf4a093afd41506b35c8a306fa94.
 //
-// Solidity: event Withdrawn(address indexed sender)
+// Solidity: event Withdrawn(address indexed Sender)
 func (_ZKOracleContract *ZKOracleContractFilterer) WatchWithdrawn(opts *bind.WatchOpts, sink chan<- *ZKOracleContractWithdrawn, sender []common.Address) (event.Subscription, error) {
 
 	var senderRule []interface{}
@@ -1312,7 +1312,7 @@ func (_ZKOracleContract *ZKOracleContractFilterer) WatchWithdrawn(opts *bind.Wat
 
 // ParseWithdrawn is a log parse operation binding the contract event 0xf45a04d08a70caa7eb4b747571305559ad9fdf4a093afd41506b35c8a306fa94.
 //
-// Solidity: event Withdrawn(address indexed sender)
+// Solidity: event Withdrawn(address indexed Sender)
 func (_ZKOracleContract *ZKOracleContractFilterer) ParseWithdrawn(log types.Log) (*ZKOracleContractWithdrawn, error) {
 	event := new(ZKOracleContractWithdrawn)
 	if err := _ZKOracleContract.contract.UnpackLog(event, "Withdrawn", log); err != nil {

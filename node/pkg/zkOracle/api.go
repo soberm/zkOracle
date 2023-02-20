@@ -13,7 +13,7 @@ import (
 func (n *Node) SendVote(ctx context.Context, request *SendVoteRequest) (*SendVoteResponse, error) {
 	logger.Info().
 		Uint64("requestNumber", request.Request).
-		Str("blockHash", hex.EncodeToString(request.BlockHash)).
+		Str("BlockHash", hex.EncodeToString(request.BlockHash)).
 		Msg("received vote")
 
 	account, err := n.state.ReadAccount(request.Index)
@@ -28,11 +28,11 @@ func (n *Node) SendVote(ctx context.Context, request *SendVoteRequest) (*SendVot
 	}
 
 	err = n.votePool.add(&Vote{
-		index:     request.Index,
-		request:   big.NewInt(int64(request.Request)),
-		blockHash: common.BytesToHash(request.BlockHash),
-		sender:    *account.PublicKey,
-		signature: *sig,
+		Index:     request.Index,
+		Request:   big.NewInt(int64(request.Request)),
+		BlockHash: common.BytesToHash(request.BlockHash),
+		Sender:    *account.PublicKey,
+		Signature: *sig,
 	})
 	if err != nil {
 		return nil, status.Errorf(codes.Internal, "add to pool: %v", err)

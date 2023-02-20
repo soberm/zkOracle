@@ -13,6 +13,7 @@ import (
 	"github.com/consensys/gnark/frontend/cs/r1cs"
 	"github.com/consensys/gnark/std/algebra/twistededwards"
 	eddsa2 "github.com/consensys/gnark/std/signature/eddsa"
+	"github.com/ethereum/go-ethereum/common"
 	"github.com/status-im/keycard-go/hexutils"
 	"math/big"
 	"math/rand"
@@ -54,11 +55,21 @@ func GenerateVotes(privateKeys []*eddsa.PrivateKey, state *zkOracle.State) ([nbA
 
 		var pub eddsa2.PublicKey
 		var sig eddsa2.Signature
-		result := hexutils.HexToBytes("8a37bed7896a37e676fe5498e7fc14da08897b13147f7181190253c9841e09bb")
+		result := hexutils.HexToBytes("fc404e20b625e3020de61240b36ab7dba952e662c03214206559c03b004f08f3")
 
 		pub.Assign(ecc.BN254, privateKey.PublicKey.Bytes())
 
-		sigBin, err := privateKey.Sign(result, mimc.NewMiMC())
+		vote := &zkOracle.Vote{
+			Index:     uint64(i),
+			Request:   big.NewInt(0),
+			BlockHash: common.HexToHash("fc404e20b625e3020de61240b36ab7dba952e662c03214206559c03b004f08f3"),
+		}
+
+		hasher := mimc.NewMiMC()
+		hasher.Write(vote.Serialize())
+		msg := hasher.Sum(nil)
+
+		sigBin, err := privateKey.Sign(msg, mimc.NewMiMC())
 		if err != nil {
 			return votes, fmt.Errorf("sign: %w", err)
 		}
@@ -126,7 +137,7 @@ func main() {
 	//f, _ := os.Create("./Verifier.sol")
 	//vk.ExportSolidity(f)
 
-	blockHash := hexutils.HexToBytes("8a37bed7896a37e676fe5498e7fc14da08897b13147f7181190253c9841e09bb")
+	blockHash := hexutils.HexToBytes("fc404e20b625e3020de61240b36ab7dba952e662c03214206559c03b004f08f3")
 
 	var assignment zkOracle.AggregationCircuit
 
@@ -138,6 +149,7 @@ func main() {
 
 	assignment.PreStateRoot = merkleRoot
 	assignment.BlockHash = blockHash
+	assignment.Request = big.NewInt(0)
 
 	const fpSize = fp.Bytes
 	assignment.Aggregator = zkOracle.AggregatorConstraints{
@@ -198,7 +210,11 @@ func main() {
 		return
 	}
 
-	_ = groth16.Verify(p, vk, pw)
+	err = groth16.Verify(p, vk, pw)
+	if err != nil {
+		fmt.Printf("%v", err)
+		return
+	}
 
 	var (
 		a [2]*big.Int

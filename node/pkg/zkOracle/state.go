@@ -45,7 +45,7 @@ func NewState(hFunc hash.Hash, accounts []*Account) (*State, error) {
 }
 
 func (s *State) UpdateState(vote *Vote) error {
-	account, err := s.ReadAccount(vote.index)
+	account, err := s.ReadAccount(vote.Index)
 	if err != nil {
 		return fmt.Errorf("read account: %w", err)
 	}

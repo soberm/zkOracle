@@ -29,8 +29,8 @@ func (vp *VotePool) add(vote *Vote) error {
 	defer vp.Unlock()
 
 	logger.Info().
-		Uint64("index", vote.index).
-		Uint64("requestNumber", vote.request.Uint64()).
+		Uint64("Index", vote.Index).
+		Uint64("requestNumber", vote.Request.Uint64()).
 		Msg("adding vote")
 
 	isValid, err := vp.verifyVote(vote)
@@ -47,13 +47,13 @@ func (vp *VotePool) add(vote *Vote) error {
 	if ok {
 		return fmt.Errorf("vote already exists")
 	}
-	
-	vp.voteHashes[vote.request.Uint64()] = append(vp.voteHashes[vote.request.Uint64()], &voteHash)
+
+	vp.voteHashes[vote.Request.Uint64()] = append(vp.voteHashes[vote.Request.Uint64()], &voteHash)
 	vp.votes[voteHash] = vote
 
-	if len(vp.voteHashes[vote.request.Uint64()]) == nbAccounts {
+	if len(vp.voteHashes[vote.Request.Uint64()]) == nbAccounts {
 		select {
-		case vp.sink <- vote.request.Uint64():
+		case vp.sink <- vote.Request.Uint64():
 		default:
 		}
 	}
@@ -61,16 +61,30 @@ func (vp *VotePool) add(vote *Vote) error {
 	return nil
 }
 
+func (vp *VotePool) getVotes(requestID uint64) ([]*Vote, error) {
+
+	votes := make([]*Vote, 0)
+	for _, vote := range vp.voteHashes[requestID] {
+		votes = append(votes, vp.votes[*vote])
+	}
+
+	return votes, nil
+}
+
 func (vp *VotePool) verifyVote(vote *Vote) (bool, error) {
 	logger.Info().
-		Uint64("requestNumber", vote.request.Uint64()).
-		Str("blockHash", vote.blockHash.String()).
-		Uint64("index", vote.index).
+		Uint64("requestNumber", vote.Request.Uint64()).
+		Str("BlockHash", vote.BlockHash.String()).
+		Uint64("Index", vote.Index).
 		Msg("verify vote")
 
-	isValid, err := vote.sender.Verify(vote.signature.Bytes(), vote.Serialize(), mimc.NewMiMC())
+	hasher := mimc.NewMiMC()
+	hasher.Write(vote.Serialize())
+	msg := hasher.Sum(nil)
+
+	isValid, err := vote.Sender.Verify(vote.Signature.Bytes(), msg, mimc.NewMiMC())
 	if err != nil {
-		return isValid, fmt.Errorf("verify signature: %w", err)
+		return isValid, fmt.Errorf("verify Signature: %w", err)
 	}
 	return isValid, nil
 }

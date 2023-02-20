@@ -51,7 +51,8 @@ func main() {
 	if err != nil {
 		panic(err)
 	}
-	_, err = pk.WriteTo(file)
+
+	_, err = pk.WriteRawTo(file)
 	if err != nil {
 		panic(err)
 	}
@@ -60,7 +61,7 @@ func main() {
 	if err != nil {
 		panic(err)
 	}
-	_, err = vk.WriteTo(file)
+	_, err = vk.WriteRawTo(file)
 	if err != nil {
 		panic(err)
 	}

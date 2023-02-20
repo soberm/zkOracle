@@ -13,7 +13,7 @@ type Account struct {
 	Balance   *big.Int
 }
 
-// Serialize index ∥ pubkeyX ∥ pubkeyY ∥ balance
+// Serialize Index ∥ pubkeyX ∥ pubkeyY ∥ balance
 func (a *Account) Serialize() []byte {
 	var b [accountSize]byte
 

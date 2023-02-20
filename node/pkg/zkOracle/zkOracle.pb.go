@@ -25,10 +25,10 @@ type SendVoteRequest struct {
 	sizeCache     protoimpl.SizeCache
 	unknownFields protoimpl.UnknownFields
 
-	Index     uint64 `protobuf:"varint,1,opt,name=index,proto3" json:"index,omitempty"`
-	Request   uint64 `protobuf:"varint,2,opt,name=request,proto3" json:"request,omitempty"`
-	BlockHash []byte `protobuf:"bytes,3,opt,name=blockHash,proto3" json:"blockHash,omitempty"`
-	Signature []byte `protobuf:"bytes,4,opt,name=signature,proto3" json:"signature,omitempty"`
+	Index     uint64 `protobuf:"varint,1,opt,name=Index,proto3" json:"Index,omitempty"`
+	Request   uint64 `protobuf:"varint,2,opt,name=Request,proto3" json:"Request,omitempty"`
+	BlockHash []byte `protobuf:"bytes,3,opt,name=BlockHash,proto3" json:"BlockHash,omitempty"`
+	Signature []byte `protobuf:"bytes,4,opt,name=Signature,proto3" json:"Signature,omitempty"`
 }
 
 func (x *SendVoteRequest) Reset() {

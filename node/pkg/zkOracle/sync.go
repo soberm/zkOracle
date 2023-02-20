@@ -96,7 +96,7 @@ func (s *StateSync) Update(ctx context.Context) error {
 
 func (s *StateSync) HandleRegisteredEvent(ctx context.Context, event *ZKOracleContractRegistered) error {
 	logger.Info().
-		Uint64("index", event.Index.Uint64()).
+		Uint64("Index", event.Index.Uint64()).
 		Str("pubKeyX", event.Pubkey.X.String()).
 		Str("pubKeyY", event.Pubkey.Y.String()).
 		Str("balance", event.Value.String()).

@@ -21,6 +21,7 @@ type AggregationCircuit struct {
 	PreStateRoot  frontend.Variable `gnark:",public"`
 	PostStateRoot frontend.Variable `gnark:",public"`
 	BlockHash     frontend.Variable `gnark:",public"`
+	Request       frontend.Variable `gnark:",public"`
 	Aggregator    AggregatorConstraints
 	Validators    [nbAccounts]ValidatorConstraints
 }
@@ -118,7 +119,14 @@ func (c *AggregationCircuit) Define(api frontend.API) error {
 		hFunc.Reset()
 		merkle.VerifyProof(api, hFunc, intermediateRoot, validator.MerkleProof[:], validator.MerkleProofHelper[:])
 
-		if err := eddsa.Verify(curve, validator.Signature, validator.BlockHash, validator.PublicKey, &hFunc); err != nil {
+		hFunc.Reset()
+		hFunc.Write(validator.Index)
+		hFunc.Write(c.Request)
+		hFunc.Write(c.BlockHash)
+		msg := hFunc.Sum()
+
+		hFunc.Reset()
+		if err := eddsa.Verify(curve, validator.Signature, msg, validator.PublicKey, &hFunc); err != nil {
 			return fmt.Errorf("verify eddsa: %w", err)
 		}
 
