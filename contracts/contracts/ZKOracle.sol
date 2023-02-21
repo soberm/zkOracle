@@ -44,7 +44,11 @@ contract ZKOracle {
     event Withdrawn(address indexed sender);
 
     event BlockRequested(uint256 number, uint256 request);
-    event BlockSubmitted(uint256 submitter, uint256 request);
+    event BlockSubmitted(
+        uint256 submitter,
+        uint256 validators,
+        uint256 request
+    );
 
     constructor(
         address merkleTreeAddress,
@@ -68,6 +72,7 @@ contract ZKOracle {
     function submitBlock(
         uint256 index,
         uint256 request,
+        uint256 validators,
         bytes32 blockHash,
         uint256 postStateRoot,
         uint256[2] memory a,
@@ -77,11 +82,12 @@ contract ZKOracle {
         require(accounts[index] == msg.sender, "invalid index");
         blocks[request] = blockHash;
 
-        uint[7] memory input = [
+        uint[8] memory input = [
             merkleTree.getRoot(),
             postStateRoot,
             uint256(blockHash),
             request,
+            validators,
             index,
             seedX,
             seedY
@@ -90,7 +96,7 @@ contract ZKOracle {
         require(verifier.verifyProof(a, b, c, input), "invalid proof");
 
         merkleTree.setRoot(postStateRoot);
-        emit BlockSubmitted(index, request);
+        emit BlockSubmitted(index, validators, request);
     }
 
     function getAggregator() public view returns (uint) {

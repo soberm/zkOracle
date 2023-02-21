@@ -22,6 +22,7 @@ type AggregationCircuit struct {
 	PostStateRoot frontend.Variable `gnark:",public"`
 	BlockHash     frontend.Variable `gnark:",public"`
 	Request       frontend.Variable `gnark:",public"`
+	ValidatorBits frontend.Variable `gnark:",public"`
 	Aggregator    AggregatorConstraints
 	Validators    [nbAccounts]ValidatorConstraints
 }
@@ -149,7 +150,7 @@ func (c *AggregationCircuit) Define(api frontend.API) error {
 		validatorBits = api.Add(validatorBits, pow(api, 2, validator.Index))
 	}
 
-	api.Println(validatorBits)
+	api.AssertIsEqual(c.ValidatorBits, validatorBits)
 
 	api.AssertIsEqual(c.PostStateRoot, intermediateRoot)
 

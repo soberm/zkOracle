@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"context"
 	"crypto/ecdsa"
+	"encoding/hex"
 	"fmt"
 	"github.com/consensys/gnark-crypto/ecc"
 	"github.com/consensys/gnark-crypto/ecc/bn254/fp"
@@ -110,6 +111,7 @@ func (a *Aggregator) ProcessVotes(votes []*Vote) error {
 	}
 
 	var validatorConstraints [nbAccounts]ValidatorConstraints
+	validatorBits := new(big.Int)
 	for i, vote := range votes {
 		validatorAccount, err := a.state.ReadAccount(vote.Index)
 		if err != nil {
@@ -137,6 +139,11 @@ func (a *Aggregator) ProcessVotes(votes []*Vote) error {
 			BlockHash:         vote.BlockHash.Bytes(),
 		}
 
+		validatorBit := new(big.Int)
+		validatorBit.Exp(big.NewInt(2), big.NewInt(int64(vote.Index)), nil)
+
+		validatorBits = validatorBits.Add(validatorBits, validatorBit)
+
 		validatorAccount.Balance.Add(validatorAccount.Balance, big.NewInt(ValidatorReward))
 		err = a.state.WriteAccount(validatorAccount)
 		if err != nil {
@@ -154,9 +161,12 @@ func (a *Aggregator) ProcessVotes(votes []*Vote) error {
 		PostStateRoot: postStateRoot,
 		BlockHash:     votes[0].BlockHash.Bytes(),
 		Request:       votes[0].Request,
+		ValidatorBits: validatorBits,
 		Aggregator:    aggregatorConstraints,
 		Validators:    validatorConstraints,
 	}
+
+	logger.Info().Str("postStateRoot", hex.EncodeToString(postStateRoot)).Msg("Test")
 
 	witness, err := frontend.NewWitness(&assignment, ecc.BN254)
 	if err != nil {
@@ -210,6 +220,7 @@ func (a *Aggregator) ProcessVotes(votes []*Vote) error {
 		auth,
 		big.NewInt(0).SetUint64(a.index),
 		votes[0].Request,
+		validatorBits,
 		blockHash,
 		big.NewInt(0).SetBytes(postStateRoot),
 		proof.a,

@@ -49,8 +49,9 @@ func GenerateAccounts() ([]*eddsa.PrivateKey, []*zkOracle.Account, error) {
 	return privateKeys, accounts, nil
 }
 
-func GenerateVotes(privateKeys []*eddsa.PrivateKey, state *zkOracle.State) ([nbAccounts]zkOracle.ValidatorConstraints, error) {
+func GenerateVotes(privateKeys []*eddsa.PrivateKey, state *zkOracle.State) ([nbAccounts]zkOracle.ValidatorConstraints, *big.Int, error) {
 	var votes [nbAccounts]zkOracle.ValidatorConstraints
+	validatorBits := big.NewInt(0)
 	for i, privateKey := range privateKeys {
 
 		var pub eddsa2.PublicKey
@@ -71,19 +72,24 @@ func GenerateVotes(privateKeys []*eddsa.PrivateKey, state *zkOracle.State) ([nbA
 
 		sigBin, err := privateKey.Sign(msg, mimc.NewMiMC())
 		if err != nil {
-			return votes, fmt.Errorf("sign: %w", err)
+			return votes, validatorBits, fmt.Errorf("sign: %w", err)
 		}
 		sig.Assign(ecc.BN254, sigBin)
 
 		_, proof, helper, err := state.MerkleProof(uint64(i))
 		if err != nil {
-			return votes, fmt.Errorf("merkle proof: %w", err)
+			return votes, validatorBits, fmt.Errorf("merkle proof: %w", err)
 		}
 
 		account, err := state.ReadAccount(uint64(i))
 		if err != nil {
-			return votes, fmt.Errorf("read account: %w", err)
+			return votes, validatorBits, fmt.Errorf("read account: %w", err)
 		}
+
+		validatorBit := new(big.Int)
+		validatorBit.Exp(big.NewInt(2), account.Index, nil)
+
+		validatorBits = validatorBits.Add(validatorBits, validatorBit)
 
 		votes[i] = zkOracle.ValidatorConstraints{
 			Index:             account.Index,
@@ -98,11 +104,11 @@ func GenerateVotes(privateKeys []*eddsa.PrivateKey, state *zkOracle.State) ([nbA
 		account.Balance.Add(account.Balance, big.NewInt(zkOracle.ValidatorReward))
 		err = state.WriteAccount(account)
 		if err != nil {
-			return votes, fmt.Errorf("write account: %w", err)
+			return votes, validatorBits, fmt.Errorf("write account: %w", err)
 		}
 	}
 
-	return votes, nil
+	return votes, validatorBits, nil
 }
 
 func main() {
@@ -173,12 +179,13 @@ func main() {
 		return
 	}
 
-	votes, err := GenerateVotes(privateKeys, state)
+	votes, validatorBits, err := GenerateVotes(privateKeys, state)
 	if err != nil {
 		fmt.Printf("%v", err)
 		return
 	}
 	assignment.Validators = votes
+	assignment.ValidatorBits = validatorBits
 
 	root, err := state.Root()
 	if err != nil {

@@ -2,6 +2,7 @@ package zkOracle
 
 import (
 	"context"
+	"encoding/hex"
 	"fmt"
 	"github.com/consensys/gnark-crypto/ecc/bn254/fr"
 	"github.com/consensys/gnark-crypto/ecc/bn254/twistededwards"
@@ -148,7 +149,11 @@ func (s *StateSync) HandleBlockSubmittedEvent(ctx context.Context, event *ZKOrac
 	}
 
 	for i := 0; i < nbAccounts; i++ {
-		account, err := s.state.ReadAccount(event.Submitter.Uint64())
+		if event.Validators.Bit(i) == 0 {
+			continue
+		}
+
+		account, err := s.state.ReadAccount(uint64(i))
 		if err != nil {
 			return fmt.Errorf("read aggregator account: %w", err)
 		}
@@ -158,6 +163,7 @@ func (s *StateSync) HandleBlockSubmittedEvent(ctx context.Context, event *ZKOrac
 			return fmt.Errorf("write account: %w", err)
 		}
 	}
-
+	root, _ := s.state.Root()
+	logger.Info().Str("root", hex.EncodeToString(root)).Msg("after update")
 	return nil
 }
