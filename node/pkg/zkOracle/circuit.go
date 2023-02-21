@@ -105,6 +105,8 @@ func (c *AggregationCircuit) Define(api frontend.API) error {
 	hFunc.Reset()
 	intermediateRoot := ComputeRootFromPath(api, hFunc, c.Aggregator.MerkleProof[:], c.Aggregator.MerkleProofHelper[:])
 
+	validatorBits := frontend.Variable(0)
+
 	for _, validator := range c.Validators {
 
 		//Verify that the account matches the leaf
@@ -143,7 +145,11 @@ func (c *AggregationCircuit) Define(api frontend.API) error {
 		//Compute new intermediate root
 		hFunc.Reset()
 		intermediateRoot = ComputeRootFromPath(api, hFunc, validator.MerkleProof[:], validator.MerkleProofHelper[:])
+
+		validatorBits = api.Add(validatorBits, pow(api, 2, validator.Index))
 	}
+
+	api.Println(validatorBits)
 
 	api.AssertIsEqual(c.PostStateRoot, intermediateRoot)
 
