@@ -89,7 +89,7 @@ func (v *Validator) HandleBlockRequestedEvent(ctx context.Context, event *ZKOrac
 
 	logger.Info().
 		Uint64("requestNumber", event.Request.Uint64()).
-		Uint64("Index", i.Uint64()).
+		Uint64("index", i.Uint64()).
 		Str("ipAddr", addr).
 		Msg("sending vote to aggregator")
 

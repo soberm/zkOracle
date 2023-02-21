@@ -15,13 +15,14 @@ import (
 )
 
 type StateSync struct {
-	state     *State
-	contract  *ZKOracleContract
-	ethClient *ethclient.Client
+	state           *State
+	contract        *ZKOracleContract
+	contractAddress common.Address
+	ethClient       *ethclient.Client
 }
 
-func NewStateSync(state *State, contract *ZKOracleContract, ethClient *ethclient.Client) *StateSync {
-	return &StateSync{state: state, contract: contract, ethClient: ethClient}
+func NewStateSync(state *State, contract *ZKOracleContract, contractAddress common.Address, ethClient *ethclient.Client) *StateSync {
+	return &StateSync{state: state, contract: contract, contractAddress: contractAddress, ethClient: ethClient}
 }
 
 func (s *StateSync) Synchronize() error {
@@ -45,7 +46,7 @@ func (s *StateSync) Update(ctx context.Context) error {
 		FromBlock: big.NewInt(0),
 		ToBlock:   big.NewInt(50),
 		Addresses: []common.Address{
-			common.HexToAddress("0x9fE46736679d2D9a65F0992F2272dE9f3c7fa6e0"),
+			s.contractAddress,
 		},
 	}
 
