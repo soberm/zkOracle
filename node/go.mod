@@ -7,6 +7,7 @@ require (
 	github.com/consensys/gnark-crypto v0.7.0
 	github.com/ethereum/go-ethereum v1.10.26
 	github.com/rs/zerolog v1.26.1
+	github.com/spf13/viper v1.15.0
 	github.com/status-im/keycard-go v0.0.0-20190316090335-8537d3370df4
 	google.golang.org/grpc v1.53.0
 	google.golang.org/protobuf v1.28.1
@@ -35,7 +36,6 @@ require (
 	github.com/spf13/cast v1.5.0 // indirect
 	github.com/spf13/jwalterweatherman v1.1.0 // indirect
 	github.com/spf13/pflag v1.0.5 // indirect
-	github.com/spf13/viper v1.15.0 // indirect
 	github.com/subosito/gotenv v1.4.2 // indirect
 	github.com/tklauser/go-sysconf v0.3.5 // indirect
 	github.com/tklauser/numcpus v0.2.2 // indirect

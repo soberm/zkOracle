@@ -21,9 +21,18 @@ describe("ZKOracle", function () {
 
     const merkleTree = await MerkleTree.deploy(2);
 
+    const Verifier = await ethers.getContractFactory("Verifier");
+
+    const verifier = await Verifier.deploy();
+
     const ZKOracle = await ethers.getContractFactory("ZKOracle");
 
-    const zkOracle = await ZKOracle.deploy(merkleTree.address, 0, 1);
+    const zkOracle = await ZKOracle.deploy(
+      merkleTree.address,
+      verifier.address,
+      0,
+      1
+    );
 
     return { zkOracle, owner, addr1, addr2 };
   }
@@ -35,7 +44,7 @@ describe("ZKOracle", function () {
         x: "7794373982259243195870592346785104092432649697832080133780782253104282782817",
         y: "16580021058669382711579094818964719809751621462486576197985799831318116474539",
       },
-        "127.0.0.1:25565",
+      "127.0.0.1:25565",
       { value: ethers.utils.parseEther("0") }
     );
     await zkOracle.register(
@@ -43,7 +52,7 @@ describe("ZKOracle", function () {
         x: "19259775561661129033490267958867540712323727687827132538598271216435741353390",
         y: "17569980102909044676256001479640411087334772294425842357847622915410385256152",
       },
-        "127.0.0.1:25565",
+      "127.0.0.1:25565",
       { value: ethers.utils.parseEther("0") }
     );
     await zkOracle.register(
@@ -51,7 +60,7 @@ describe("ZKOracle", function () {
         x: "2601225367854716029338107863118094577720373831631316901128802328263635799774",
         y: "20145565086840628487646378555659304143430966406145099422862446733209566497019",
       },
-        "127.0.0.1:25565",
+      "127.0.0.1:25565",
       { value: ethers.utils.parseEther("0") }
     );
     await zkOracle.register(

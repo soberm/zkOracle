@@ -43,6 +43,16 @@ func NewNode(config *Config) (*Node, error) {
 		return nil, fmt.Errorf("dial eth: %w", err)
 	}
 
+	chainID, err := ethClient.ChainID(context.Background())
+	if err != nil {
+		return nil, fmt.Errorf("chain id: %w", err)
+	}
+
+	ecdsaPrivateKey, err := crypto.HexToECDSA(config.Ethereum.PrivateKey)
+	if err != nil {
+		return nil, fmt.Errorf("ecdsa private key: %w", err)
+	}
+
 	contract, err := NewZKOracleContract(common.HexToAddress(config.ContractAddress), ethClient)
 	if err != nil {
 		return nil, fmt.Errorf("oracle contract: %w", err)
@@ -95,17 +105,19 @@ func NewNode(config *Config) (*Node, error) {
 	}
 
 	votePool := NewVotePool()
-	aggregator := NewAggregator(config.Index, eddsaPrivateKey, state, votePool, constraintSystem, pk, vk)
-
-	chainID, err := ethClient.ChainID(context.Background())
-	if err != nil {
-		return nil, fmt.Errorf("chain id: %w", err)
-	}
-
-	ecdsaPrivateKey, err := crypto.HexToECDSA(config.Ethereum.PrivateKey)
-	if err != nil {
-		return nil, fmt.Errorf("ecdsa private key: %w", err)
-	}
+	aggregator := NewAggregator(
+		config.Index,
+		eddsaPrivateKey,
+		state,
+		votePool,
+		constraintSystem,
+		pk,
+		vk,
+		contract,
+		chainID,
+		ecdsaPrivateKey,
+		ethClient,
+	)
 
 	stateSync := NewStateSync(state, contract, ethClient)
 

@@ -3,9 +3,11 @@ pragma solidity ^0.8.9;
 
 import "hardhat/console.sol";
 import "./MerkleTree.sol";
+import "./Verifier.sol";
 
 contract ZKOracle {
     MerkleTree merkleTree;
+    Verifier verifier;
 
     struct Account {
         uint256 index;
@@ -31,7 +33,12 @@ contract ZKOracle {
     uint256 seedY;
     mapping(uint256 => string) ipAddr;
 
-    event Registered(address sender, uint256 index, PublicKey pubkey, uint256 value);
+    event Registered(
+        address sender,
+        uint256 index,
+        PublicKey pubkey,
+        uint256 value
+    );
     event Replaced(address indexed sender, address indexed replaced);
     event Exiting(address indexed sender);
     event Withdrawn(address indexed sender);
@@ -39,8 +46,14 @@ contract ZKOracle {
     event BlockRequested(uint256 number, uint256 request);
     event BlockSubmitted(uint256 indexed request);
 
-    constructor(address merkleTreeAddress, uint256 _seedX, uint256 _seedY) {
+    constructor(
+        address merkleTreeAddress,
+        address verifierAddress,
+        uint256 _seedX,
+        uint256 _seedY
+    ) {
         merkleTree = MerkleTree(merkleTreeAddress);
+        verifier = Verifier(verifierAddress);
         seedX = _seedX;
         seedY = _seedY;
     }
@@ -52,9 +65,29 @@ contract ZKOracle {
         nextRequest += 1;
     }
 
-    function submitBlock(uint256 request, bytes32 blockHash) public {
+    function submitBlock(
+        uint256 index,
+        uint256 request,
+        bytes32 blockHash,
+        uint256 postStateRoot,
+        uint256[2] memory a,
+        uint256[2][2] memory b,
+        uint256[2] memory c
+    ) public {
+        require(accounts[index] == msg.sender, "invalid index");
         blocks[request] = blockHash;
-        //TODO: Verify proof
+
+        uint[7] memory input = [
+            merkleTree.getRoot(),
+            postStateRoot,
+            uint256(blockHash),
+            request,
+            index,
+            seedX,
+            seedY
+        ];
+
+        require(verifier.verifyProof(a, b, c, input), "invalid proof");
         emit BlockSubmitted(request);
     }
 
@@ -66,7 +99,10 @@ contract ZKOracle {
         return ipAddr[index];
     }
 
-    function register(PublicKey memory publicKey, string memory ip) public payable {
+    function register(
+        PublicKey memory publicKey,
+        string memory ip
+    ) public payable {
         Account memory account = Account(
             merkleTree.getNextLeafIndex(),
             publicKey,
@@ -82,7 +118,12 @@ contract ZKOracle {
 
         merkleTree.insert(h);
 
-        emit Registered(msg.sender, account.index, account.pubKey, account.balance);
+        emit Registered(
+            msg.sender,
+            account.index,
+            account.pubKey,
+            account.balance
+        );
     }
 
     function replace(

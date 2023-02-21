@@ -1,7 +1,6 @@
 import { ethers } from "hardhat";
 
 async function main() {
-
   const MiMC = await ethers.getContractFactory("MiMC");
   const miMC = await MiMC.deploy();
 
@@ -13,9 +12,20 @@ async function main() {
 
   const merkleTree = await MerkleTree.deploy(2);
 
-  const ZKOracle = await ethers.getContractFactory("contracts/ZKOracle.sol:ZKOracle");
+  const Verifier = await ethers.getContractFactory("Verifier");
 
-  const zkOracle = await ZKOracle.deploy(merkleTree.address, 0, 1);
+  const verifier = await Verifier.deploy();
+
+  const ZKOracle = await ethers.getContractFactory(
+    "contracts/ZKOracle.sol:ZKOracle"
+  );
+
+  const zkOracle = await ZKOracle.deploy(
+    merkleTree.address,
+    verifier.address,
+    0,
+    1
+  );
 
   await zkOracle.deployed();
 
