@@ -13,6 +13,7 @@ type VotePool struct {
 	sync.RWMutex
 	votes      map[common.Hash]*Vote
 	voteHashes map[uint64][]*common.Hash
+	results    map[uint64]map[common.Hash]uint64
 	sink       chan uint64
 }
 
@@ -20,6 +21,7 @@ func NewVotePool() *VotePool {
 	return &VotePool{
 		votes:      make(map[common.Hash]*Vote),
 		voteHashes: make(map[uint64][]*common.Hash),
+		results:    make(map[uint64]map[common.Hash]uint64),
 		sink:       make(chan uint64),
 	}
 }
@@ -29,7 +31,7 @@ func (vp *VotePool) add(vote *Vote) error {
 	defer vp.Unlock()
 
 	logger.Info().
-		Uint64("Index", vote.Index).
+		Uint64("index", vote.Index).
 		Uint64("requestNumber", vote.Request.Uint64()).
 		Msg("adding vote")
 
@@ -48,10 +50,23 @@ func (vp *VotePool) add(vote *Vote) error {
 		return fmt.Errorf("vote already exists")
 	}
 
-	vp.voteHashes[vote.Request.Uint64()] = append(vp.voteHashes[vote.Request.Uint64()], &voteHash)
+	requestID := vote.Request.Uint64()
+
+	vp.voteHashes[requestID] = append(vp.voteHashes[vote.Request.Uint64()], &voteHash)
 	vp.votes[voteHash] = vote
 
-	if len(vp.voteHashes[vote.Request.Uint64()]) == nbAccounts {
+	_, ok = vp.results[requestID]
+	if !ok {
+		vp.results[requestID] = make(map[common.Hash]uint64)
+	}
+
+	_, ok = vp.results[requestID][vote.BlockHash]
+	if !ok {
+		vp.results[requestID][vote.BlockHash] = 0
+	}
+	vp.results[requestID][vote.BlockHash] += 1
+
+	if vp.results[requestID][vote.BlockHash] == nbAccounts {
 		select {
 		case vp.sink <- vote.Request.Uint64():
 		default:
@@ -62,6 +77,8 @@ func (vp *VotePool) add(vote *Vote) error {
 }
 
 func (vp *VotePool) getVotes(requestID uint64) ([]*Vote, error) {
+	vp.RLock()
+	defer vp.RUnlock()
 
 	votes := make([]*Vote, 0)
 	for _, vote := range vp.voteHashes[requestID] {
@@ -74,15 +91,14 @@ func (vp *VotePool) getVotes(requestID uint64) ([]*Vote, error) {
 func (vp *VotePool) verifyVote(vote *Vote) (bool, error) {
 	logger.Info().
 		Uint64("requestNumber", vote.Request.Uint64()).
-		Str("BlockHash", vote.BlockHash.String()).
-		Uint64("Index", vote.Index).
+		Str("blockHash", vote.BlockHash.String()).
+		Uint64("index", vote.Index).
 		Msg("verify vote")
 
-	hasher := mimc.NewMiMC()
-	hasher.Write(vote.Serialize())
-	msg := hasher.Sum(nil)
+	hFunc := mimc.NewMiMC()
+	hFunc.Write(vote.Serialize())
 
-	isValid, err := vote.Sender.Verify(vote.Signature.Bytes(), msg, mimc.NewMiMC())
+	isValid, err := vote.Sender.Verify(vote.Signature.Bytes(), hFunc.Sum(nil), hFunc)
 	if err != nil {
 		return isValid, fmt.Errorf("verify Signature: %w", err)
 	}
