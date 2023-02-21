@@ -119,7 +119,7 @@ func NewNode(config *Config) (*Node, error) {
 		ethClient,
 	)
 
-	stateSync := NewStateSync(state, contract, common.HexToAddress(config.ContractAddress), ethClient)
+	stateSync := NewStateSync(config.Index, state, contract, common.HexToAddress(config.ContractAddress), ethClient)
 
 	server := grpc.NewServer()
 

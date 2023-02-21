@@ -118,6 +118,10 @@ contract MerkleTree {
         return root;
     }
 
+    function setRoot(uint256 _root) public {
+        root = _root;
+    }
+
     function getLevels() public view returns (uint256) {
         return levels;
     }

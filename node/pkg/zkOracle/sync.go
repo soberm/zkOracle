@@ -15,14 +15,15 @@ import (
 )
 
 type StateSync struct {
+	index           uint64
 	state           *State
 	contract        *ZKOracleContract
 	contractAddress common.Address
 	ethClient       *ethclient.Client
 }
 
-func NewStateSync(state *State, contract *ZKOracleContract, contractAddress common.Address, ethClient *ethclient.Client) *StateSync {
-	return &StateSync{state: state, contract: contract, contractAddress: contractAddress, ethClient: ethClient}
+func NewStateSync(index uint64, state *State, contract *ZKOracleContract, contractAddress common.Address, ethClient *ethclient.Client) *StateSync {
+	return &StateSync{index: index, state: state, contract: contract, contractAddress: contractAddress, ethClient: ethClient}
 }
 
 func (s *StateSync) Synchronize() error {
@@ -34,6 +35,12 @@ func (s *StateSync) Synchronize() error {
 	go func() {
 		if err := WatchEvent(context.Background(), s.contract.WatchRegistered, s.HandleRegisteredEvent); err != nil {
 			logger.Err(err).Msg("watch registered event")
+		}
+	}()
+
+	go func() {
+		if err := WatchEvent(context.Background(), s.contract.WatchBlockSubmitted, s.HandleBlockSubmittedEvent); err != nil {
+			logger.Err(err).Msg("watch block submitted event")
 		}
 	}()
 
@@ -75,29 +82,24 @@ func (s *StateSync) Update(ctx context.Context) error {
 			if err != nil {
 				return fmt.Errorf("handle registered: %w", err)
 			}
+		case "BlockSubmitted":
+			e, err := s.contract.ParseBlockSubmitted(log)
+			if err != nil {
+				return fmt.Errorf("parse block submitted: %w", err)
+			}
+			err = s.HandleBlockSubmittedEvent(ctx, e)
+			if err != nil {
+				return fmt.Errorf("handle block submitted: %w", err)
+			}
 		}
 	}
 
-	/*	iter, err := s.contract.FilterRegistered(&bind.FilterOpts{
-			Start:   0,
-			End:     nil,
-			Context: ctx,
-		})
-		if err != nil {
-			return fmt.Errorf("filter registered events: %w", err)
-		}
-
-		for iter.Next() {
-			if err := s.HandleRegisteredEvent(ctx, iter.Event); err != nil {
-				return fmt.Errorf("%handle registered event: %w", err)
-			}
-		}*/
 	return nil
 }
 
 func (s *StateSync) HandleRegisteredEvent(ctx context.Context, event *ZKOracleContractRegistered) error {
 	logger.Info().
-		Uint64("Index", event.Index.Uint64()).
+		Uint64("index", event.Index.Uint64()).
 		Str("pubKeyX", event.Pubkey.X.String()).
 		Str("pubKeyY", event.Pubkey.Y.String()).
 		Str("balance", event.Value.String()).
@@ -120,6 +122,41 @@ func (s *StateSync) HandleRegisteredEvent(ctx context.Context, event *ZKOracleCo
 	err := s.state.WriteAccount(account)
 	if err != nil {
 		return fmt.Errorf("write account: %w", err)
+	}
+
+	return nil
+}
+
+func (s *StateSync) HandleBlockSubmittedEvent(ctx context.Context, event *ZKOracleContractBlockSubmitted) error {
+	logger.Info().
+		Uint64("request", event.Request.Uint64()).
+		Uint64("submitter", event.Submitter.Uint64()).
+		Msg("handle block submitted event")
+
+	if event.Submitter.Uint64() == s.index {
+		return nil
+	}
+
+	aggregatorAccount, err := s.state.ReadAccount(event.Submitter.Uint64())
+	if err != nil {
+		return fmt.Errorf("read aggregator account: %w", err)
+	}
+	aggregatorAccount.Balance.Add(aggregatorAccount.Balance, big.NewInt(AggregatorReward))
+	err = s.state.WriteAccount(aggregatorAccount)
+	if err != nil {
+		return fmt.Errorf("write account: %w", err)
+	}
+
+	for i := 0; i < nbAccounts; i++ {
+		account, err := s.state.ReadAccount(event.Submitter.Uint64())
+		if err != nil {
+			return fmt.Errorf("read aggregator account: %w", err)
+		}
+		account.Balance.Add(account.Balance, big.NewInt(ValidatorReward))
+		err = s.state.WriteAccount(account)
+		if err != nil {
+			return fmt.Errorf("write account: %w", err)
+		}
 	}
 
 	return nil
