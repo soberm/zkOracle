@@ -7,7 +7,7 @@ import (
 )
 
 const (
-// voteSize = 40
+	voteSize = 96
 )
 
 type Vote struct {
@@ -19,10 +19,12 @@ type Vote struct {
 }
 
 func (v *Vote) Serialize() []byte {
-	var b [96]byte
-	//binary.BigEndian.PutUint64(b[:8], v.Index)
+
+	var b [voteSize]byte
+
 	copy(b[:32], padOrTrim(big.NewInt(int64(v.Index)).Bytes(), 32))
 	copy(b[32:64], padOrTrim(v.Request.Bytes(), 32))
-	copy(b[64:96], v.BlockHash.Bytes())
+	copy(b[64:voteSize], v.BlockHash.Bytes())
+
 	return b[:]
 }

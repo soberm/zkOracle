@@ -13,7 +13,7 @@ import (
 func (n *Node) SendVote(ctx context.Context, request *SendVoteRequest) (*SendVoteResponse, error) {
 	logger.Info().
 		Uint64("requestNumber", request.Request).
-		Str("BlockHash", hex.EncodeToString(request.BlockHash)).
+		Str("blockHash", hex.EncodeToString(request.BlockHash)).
 		Msg("received vote")
 
 	account, err := n.state.ReadAccount(request.Index)

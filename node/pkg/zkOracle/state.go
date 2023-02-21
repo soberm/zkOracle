@@ -9,9 +9,11 @@ import (
 	"github.com/consensys/gnark/std/accumulator/merkle"
 	"hash"
 	"math/big"
+	"sync"
 )
 
 type State struct {
+	sync.RWMutex
 	hFunc hash.Hash
 	data  []byte
 	hData []byte
@@ -44,16 +46,9 @@ func NewState(hFunc hash.Hash, accounts []*Account) (*State, error) {
 	}, nil
 }
 
-func (s *State) UpdateState(vote *Vote) error {
-	account, err := s.ReadAccount(vote.Index)
-	if err != nil {
-		return fmt.Errorf("read account: %w", err)
-	}
-	fmt.Printf("%v", account)
-	return nil
-}
-
 func (s *State) WriteAccount(account Account) error {
+	s.Lock()
+	defer s.Unlock()
 
 	i := int(account.Index.Int64())
 	accountData := account.Serialize()
@@ -71,14 +66,20 @@ func (s *State) WriteAccount(account Account) error {
 }
 
 func (s *State) ReadAccount(i uint64) (Account, error) {
+	s.RLock()
+	defer s.RUnlock()
+
 	var res Account
 	res.Deserialize(s.data[int(i)*accountSize : int(i)*accountSize+accountSize])
 	return res, nil
 }
 
 func (s *State) Root() ([]byte, error) {
+	s.RLock()
+	defer s.RUnlock()
+
 	var stateBuf bytes.Buffer
-	_, err := stateBuf.Write(s.HashData())
+	_, err := stateBuf.Write(s.hData)
 	if err != nil {
 		return nil, fmt.Errorf("%v", err)
 	}
@@ -86,12 +87,14 @@ func (s *State) Root() ([]byte, error) {
 }
 
 func (s *State) MerkleProof(i uint64) ([]byte, [depth]frontend.Variable, [depth - 1]frontend.Variable, error) {
+	s.RLock()
+	defer s.RUnlock()
 
 	var path [depth]frontend.Variable
 	var helper [depth - 1]frontend.Variable
 
 	var stateBuf bytes.Buffer
-	_, err := stateBuf.Write(s.HashData())
+	_, err := stateBuf.Write(s.hData)
 	if err != nil {
 		return nil, path, helper, fmt.Errorf("%v", err)
 	}
@@ -106,9 +109,6 @@ func (s *State) MerkleProof(i uint64) ([]byte, [depth]frontend.Variable, [depth 
 	for i, node := range proof {
 		p[i] = big.NewInt(0).SetBytes(node)
 	}
-	/*	fmt.Printf("Proof: %v\n", p)
-		fmt.Printf("Helper: %v\n", proofHelper)
-		fmt.Printf("PreStateRoot: %v\n", big.NewInt(0).SetBytes(root))*/
 
 	for i := 0; i < len(proof); i++ {
 		path[i] = proof[i]
@@ -119,12 +119,4 @@ func (s *State) MerkleProof(i uint64) ([]byte, [depth]frontend.Variable, [depth 
 	}
 
 	return root, path, helper, nil
-}
-
-func (s *State) Data() []byte {
-	return s.data
-}
-
-func (s *State) HashData() []byte {
-	return s.hData
 }
