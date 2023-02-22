@@ -3,12 +3,15 @@ package zkOracle
 import (
 	"context"
 	"fmt"
+	"github.com/consensys/gnark-crypto/ecc/bn254/fr"
 	"github.com/consensys/gnark-crypto/ecc/bn254/fr/mimc"
 	"github.com/consensys/gnark-crypto/ecc/bn254/twistededwards/eddsa"
 	"github.com/ethereum/go-ethereum/accounts/abi/bind"
+	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/ethclient"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials/insecure"
+	"math/big"
 )
 
 const CONFIRMATIONS uint64 = 5
@@ -58,10 +61,15 @@ func (v *Validator) HandleBlockRequestedEvent(ctx context.Context, event *ZKOrac
 		return fmt.Errorf("block not confirmed")
 	}
 
+	value := new(big.Int)
+	value.Mod(block.Hash().Big(), fr.Modulus())
+
+	hash := common.BytesToHash(value.Bytes())
+
 	vote := &Vote{
 		Index:     v.index,
 		Request:   event.Request,
-		BlockHash: block.Hash(),
+		BlockHash: hash,
 	}
 
 	hasher := mimc.NewMiMC()
@@ -102,7 +110,7 @@ func (v *Validator) HandleBlockRequestedEvent(ctx context.Context, event *ZKOrac
 	_, err = client.SendVote(ctx, &SendVoteRequest{
 		Index:     v.index,
 		Request:   event.Request.Uint64(),
-		BlockHash: block.Hash().Bytes(),
+		BlockHash: hash.Bytes(),
 		Signature: sig,
 	})
 	if err != nil {
