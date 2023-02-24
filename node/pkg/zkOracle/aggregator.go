@@ -4,10 +4,11 @@ import (
 	"bytes"
 	"context"
 	"crypto/ecdsa"
-	"encoding/hex"
 	"fmt"
 	"github.com/consensys/gnark-crypto/ecc"
 	"github.com/consensys/gnark-crypto/ecc/bn254/fp"
+	"github.com/consensys/gnark-crypto/ecc/bn254/fr"
+	edwards "github.com/consensys/gnark-crypto/ecc/bn254/twistededwards"
 	"github.com/consensys/gnark-crypto/ecc/bn254/twistededwards/eddsa"
 	"github.com/consensys/gnark/backend"
 	"github.com/consensys/gnark/backend/groth16"
@@ -90,6 +91,28 @@ func (a *Aggregator) ProcessVotes(votes []*Vote) error {
 		return fmt.Errorf("aggregator merkle proof: %w", err)
 	}
 
+	preSeedX, preSeedY, err := a.contract.GetSeed(&bind.CallOpts{
+		Context: context.Background(),
+	})
+	if err != nil {
+		return fmt.Errorf("get seed: %w", err)
+	}
+
+	preSeed := edwards.NewPointAffine(*new(fr.Element).SetBigInt(preSeedX), *new(fr.Element).SetBigInt(preSeedY))
+
+	modulus := edwards.GetEdwardsCurve().Order
+	sk := big.NewInt(0).SetBytes(a.privateKey.Bytes()[fp.Bytes : 2*fp.Bytes])
+	sk.Mod(sk, &modulus)
+
+	var postSeed edwards.PointAffine
+	postSeed.ScalarMul(&preSeed, sk)
+
+	postSeedX := new(big.Int)
+	postSeedY := new(big.Int)
+
+	postSeed.X.ToBigIntRegular(postSeedX)
+	postSeed.Y.ToBigIntRegular(postSeedY)
+
 	aggregatorAccount, err := a.state.ReadAccount(a.index)
 	if err != nil {
 		return fmt.Errorf("read aggregator account: %w", err)
@@ -97,8 +120,9 @@ func (a *Aggregator) ProcessVotes(votes []*Vote) error {
 
 	aggregatorConstraints := AggregatorConstraints{
 		Index:             a.index,
-		Seed:              twistededwards.Point{X: 0, Y: 1},
-		SecretKey:         a.privateKey.Bytes()[fp.Bytes : 2*fp.Bytes],
+		PreSeed:           twistededwards.Point{X: preSeedX, Y: preSeedY},
+		PostSeed:          twistededwards.Point{X: postSeedX, Y: postSeedY},
+		SecretKey:         sk,
 		Balance:           new(big.Int).Set(aggregatorAccount.Balance),
 		MerkleProof:       aggregatorProof,
 		MerkleProofHelper: aggregatorHelper,
@@ -166,8 +190,6 @@ func (a *Aggregator) ProcessVotes(votes []*Vote) error {
 		Validators:    validatorConstraints,
 	}
 
-	logger.Info().Str("postStateRoot", hex.EncodeToString(postStateRoot)).Msg("Test")
-
 	witness, err := frontend.NewWitness(&assignment, ecc.BN254)
 	if err != nil {
 		return fmt.Errorf("create witness: %w", err)
@@ -218,11 +240,13 @@ func (a *Aggregator) ProcessVotes(votes []*Vote) error {
 
 	tx, err := a.contract.SubmitBlock(
 		auth,
-		big.NewInt(0).SetUint64(a.index),
+		new(big.Int).SetUint64(a.index),
 		votes[0].Request,
 		validatorBits,
 		blockHash,
-		big.NewInt(0).SetBytes(postStateRoot),
+		new(big.Int).SetBytes(postStateRoot),
+		postSeedX,
+		postSeedY,
 		proof.a,
 		proof.b,
 		proof.c,

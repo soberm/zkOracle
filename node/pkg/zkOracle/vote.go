@@ -22,8 +22,8 @@ func (v *Vote) Serialize() []byte {
 
 	var b [voteSize]byte
 
-	copy(b[:32], padOrTrim(big.NewInt(int64(v.Index)).Bytes(), 32))
-	copy(b[32:64], padOrTrim(v.Request.Bytes(), 32))
+	copy(b[:32], PadOrTrim(big.NewInt(int64(v.Index)).Bytes(), 32))
+	copy(b[32:64], PadOrTrim(v.Request.Bytes(), 32))
 	copy(b[64:voteSize], v.BlockHash.Bytes())
 
 	return b[:]

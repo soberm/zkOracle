@@ -17,7 +17,7 @@ type Account struct {
 func (a *Account) Serialize() []byte {
 	var b [accountSize]byte
 
-	copy(b[:32], padOrTrim(a.Index.Bytes(), 32))
+	copy(b[:32], PadOrTrim(a.Index.Bytes(), 32))
 
 	var buf [32]byte
 	buf = a.PublicKey.A.X.Bytes()
@@ -25,7 +25,7 @@ func (a *Account) Serialize() []byte {
 	buf = a.PublicKey.A.Y.Bytes()
 	copy(b[64:], buf[:])
 
-	copy(b[96:], padOrTrim(a.Balance.Bytes(), 32))
+	copy(b[96:], PadOrTrim(a.Balance.Bytes(), 32))
 
 	return b[:]
 }

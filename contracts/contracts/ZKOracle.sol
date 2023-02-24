@@ -75,6 +75,8 @@ contract ZKOracle {
         uint256 validators,
         bytes32 blockHash,
         uint256 postStateRoot,
+        uint256 postSeedX,
+        uint256 postSeedY,
         uint256[2] memory a,
         uint256[2][2] memory b,
         uint256[2] memory c
@@ -82,7 +84,7 @@ contract ZKOracle {
         require(accounts[index] == msg.sender, "invalid index");
         blocks[request] = blockHash;
 
-        uint[8] memory input = [
+        uint[10] memory input = [
             merkleTree.getRoot(),
             postStateRoot,
             uint256(blockHash),
@@ -90,10 +92,15 @@ contract ZKOracle {
             validators,
             index,
             seedX,
-            seedY
+            seedY,
+            postSeedX,
+            postSeedY
         ];
 
         require(verifier.verifyProof(a, b, c, input), "invalid proof");
+
+        seedX = postSeedX;
+        seedY = postSeedY;
 
         merkleTree.setRoot(postStateRoot);
         emit BlockSubmitted(index, validators, request);
@@ -201,5 +208,9 @@ contract ZKOracle {
 
     function getExitTime(address addr) public view returns (uint256) {
         return exitTimes[addr];
+    }
+
+    function getSeed() public view returns (uint256, uint256) {
+        return (seedX, seedY);
     }
 }

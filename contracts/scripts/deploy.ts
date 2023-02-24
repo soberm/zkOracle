@@ -23,8 +23,8 @@ async function main() {
   const zkOracle = await ZKOracle.deploy(
     merkleTree.address,
     verifier.address,
-    0,
-    1
+    "5491184307399689246197683245202605692069525215510636283504164930708453453685",
+    "2576048849028791939551994783150968389338965397796293068226051430557680319904"
   );
 
   await zkOracle.deployed();

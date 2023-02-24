@@ -5,9 +5,10 @@ import (
 	"fmt"
 	"github.com/consensys/gnark-crypto/ecc"
 	"github.com/consensys/gnark-crypto/ecc/bn254/fp"
+	"github.com/consensys/gnark-crypto/ecc/bn254/fr"
 	"github.com/consensys/gnark-crypto/ecc/bn254/fr/mimc"
+	edwards "github.com/consensys/gnark-crypto/ecc/bn254/twistededwards"
 	"github.com/consensys/gnark-crypto/ecc/bn254/twistededwards/eddsa"
-	"github.com/consensys/gnark/backend"
 	"github.com/consensys/gnark/backend/groth16"
 	"github.com/consensys/gnark/frontend"
 	"github.com/consensys/gnark/frontend/cs/r1cs"
@@ -34,10 +35,6 @@ func GenerateAccounts() ([]*eddsa.PrivateKey, []*zkOracle.Account, error) {
 		if err != nil {
 			return nil, nil, fmt.Errorf("generate key: %w", err)
 		}
-		/*		x := sk.PublicKey.A.X.Bytes()
-				y := sk.PublicKey.A.Y.Bytes()
-				fmt.Printf("Pub-X: %v\n", big.NewInt(0).SetBytes(x[:]))
-				fmt.Printf("Pub-Y: %v\n", big.NewInt(0).SetBytes(y[:]))*/
 
 		accounts[i] = &zkOracle.Account{
 			big.NewInt(int64(i)),
@@ -147,7 +144,7 @@ func main() {
 
 	var assignment zkOracle.AggregationCircuit
 
-	merkleRoot, proof, helper, err := state.MerkleProof(0)
+	merkleRoot, proof, helper, err := state.MerkleProof(2)
 	if err != nil {
 		fmt.Printf("merkle proof: %w", err)
 		return
@@ -157,17 +154,51 @@ func main() {
 	assignment.BlockHash = blockHash
 	assignment.Request = big.NewInt(0)
 
-	const fpSize = fp.Bytes
+	testX := new(big.Int)
+	testY := new(big.Int)
+
+	testX, _ = testX.SetString("5491184307399689246197683245202605692069525215510636283504164930708453453685", 10)
+	testY, _ = testY.SetString("2576048849028791939551994783150968389338965397796293068226051430557680319904", 10)
+
+	x := fr.NewElement(0)
+	y := fr.NewElement(1)
+
+	preSeed := &edwards.PointAffine{
+		X: *x.SetBigInt(testX),
+		Y: *y.SetBigInt(testY),
+	}
+
+	sk := big.NewInt(0).SetBytes(privateKeys[2].Bytes()[fp.Bytes : 2*fp.Bytes])
+	order, _ := new(big.Int).SetString("2736030358979909402780800718157159386076813972158567259200215660948447373041", 10)
+
+	sk.Mod(sk, order)
+
+	preSeedX := new(big.Int)
+	preSeedY := new(big.Int)
+
+	preSeed.X.ToBigIntRegular(preSeedX)
+	preSeed.Y.ToBigIntRegular(preSeedY)
+
+	var postSeed edwards.PointAffine
+	postSeed.ScalarMul(preSeed, sk)
+
+	postSeedX := new(big.Int)
+	postSeedY := new(big.Int)
+
+	postSeed.X.ToBigIntRegular(postSeedX)
+	postSeed.Y.ToBigIntRegular(postSeedY)
+
 	assignment.Aggregator = zkOracle.AggregatorConstraints{
-		Index:             0,
-		Seed:              twistededwards.Point{X: 0, Y: 1},
-		SecretKey:         privateKeys[0].Bytes()[fpSize : 2*fpSize],
+		Index:             2,
+		PreSeed:           twistededwards.Point{X: preSeedX, Y: preSeedY},
+		PostSeed:          twistededwards.Point{X: postSeedX, Y: postSeedY},
+		SecretKey:         sk,
 		Balance:           big.NewInt(0),
 		MerkleProof:       proof,
 		MerkleProofHelper: helper,
 	}
 
-	account, err := state.ReadAccount(0)
+	account, err := state.ReadAccount(2)
 	if err != nil {
 		fmt.Printf("read account: %w", err)
 		return
@@ -205,7 +236,7 @@ func main() {
 		return
 	}
 
-	p, err := groth16.Prove(_r1cs, pk, w, backend.IgnoreSolverError())
+	p, err := groth16.Prove(_r1cs, pk, w)
 	if err != nil {
 		fmt.Printf("%v", err)
 		return
@@ -236,14 +267,14 @@ func main() {
 	proofBytes := buf.Bytes()
 
 	// proof.Ar, proof.Bs, proof.Krs
-	a[0] = new(big.Int).SetBytes(proofBytes[fpSize*0 : fpSize*1])
-	a[1] = new(big.Int).SetBytes(proofBytes[fpSize*1 : fpSize*2])
-	b[0][0] = new(big.Int).SetBytes(proofBytes[fpSize*2 : fpSize*3])
-	b[0][1] = new(big.Int).SetBytes(proofBytes[fpSize*3 : fpSize*4])
-	b[1][0] = new(big.Int).SetBytes(proofBytes[fpSize*4 : fpSize*5])
-	b[1][1] = new(big.Int).SetBytes(proofBytes[fpSize*5 : fpSize*6])
-	c[0] = new(big.Int).SetBytes(proofBytes[fpSize*6 : fpSize*7])
-	c[1] = new(big.Int).SetBytes(proofBytes[fpSize*7 : fpSize*8])
+	a[0] = new(big.Int).SetBytes(proofBytes[fp.Bytes*0 : fp.Bytes*1])
+	a[1] = new(big.Int).SetBytes(proofBytes[fp.Bytes*1 : fp.Bytes*2])
+	b[0][0] = new(big.Int).SetBytes(proofBytes[fp.Bytes*2 : fp.Bytes*3])
+	b[0][1] = new(big.Int).SetBytes(proofBytes[fp.Bytes*3 : fp.Bytes*4])
+	b[1][0] = new(big.Int).SetBytes(proofBytes[fp.Bytes*4 : fp.Bytes*5])
+	b[1][1] = new(big.Int).SetBytes(proofBytes[fp.Bytes*5 : fp.Bytes*6])
+	c[0] = new(big.Int).SetBytes(proofBytes[fp.Bytes*6 : fp.Bytes*7])
+	c[1] = new(big.Int).SetBytes(proofBytes[fp.Bytes*7 : fp.Bytes*8])
 
 	fmt.Printf("A: [%v,%v]\n", a[0], a[1])
 	fmt.Printf("B: [[%v,%v],[%v,%v]]\n", b[0][0], b[0][1], b[1][0], b[1][1])

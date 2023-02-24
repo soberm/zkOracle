@@ -1,6 +1,6 @@
 package zkOracle
 
-func padOrTrim(bb []byte, size int) []byte {
+func PadOrTrim(bb []byte, size int) []byte {
 	l := len(bb)
 	if l == size {
 		return bb

@@ -36,7 +36,8 @@ type SlashingCircuit struct {
 
 type AggregatorConstraints struct {
 	Index             frontend.Variable    `gnark:",public"`
-	Seed              twistededwards.Point `gnark:",public"`
+	PreSeed           twistededwards.Point `gnark:",public"`
+	PostSeed          twistededwards.Point `gnark:",public"`
 	SecretKey         frontend.Variable
 	Balance           frontend.Variable
 	MerkleProof       [depth]frontend.Variable
@@ -75,7 +76,9 @@ func (c *AggregationCircuit) Define(api frontend.API) error {
 	}
 
 	//Compute next Seed
-	c.Aggregator.Seed = curve.ScalarMul(c.Aggregator.Seed, c.Aggregator.SecretKey)
+	postSeed := curve.ScalarMul(c.Aggregator.PreSeed, c.Aggregator.SecretKey)
+	api.AssertIsEqual(c.Aggregator.PostSeed.X, postSeed.X)
+	api.AssertIsEqual(c.Aggregator.PostSeed.Y, postSeed.Y)
 
 	// Compute aggregator public key
 	base := curve.Params().Base
