@@ -134,7 +134,7 @@ func (a *Aggregator) ProcessVotes(votes []*Vote) error {
 		return fmt.Errorf("write account: %w", err)
 	}
 
-	var validatorConstraints [nbAccounts]ValidatorConstraints
+	var validatorConstraints [NumAccounts]ValidatorConstraints
 	validatorBits := new(big.Int)
 	for i, vote := range votes {
 		validatorAccount, err := a.state.ReadAccount(vote.Index)

@@ -26,10 +26,6 @@ import (
 	"time"
 )
 
-const (
-	nbAccounts = 4
-)
-
 func main() {
 
 	runs := flag.Int("r", 10, "filename of the config file")
@@ -73,7 +69,7 @@ func main() {
 	}
 
 	for i := 0; i < *runs; i++ {
-		privateKeys, err := GeneratePrivateKeys(nbAccounts)
+		privateKeys, err := GeneratePrivateKeys(zkOracle.NumAccounts)
 		if err != nil {
 			panic(err)
 		}
@@ -150,7 +146,7 @@ func GeneratePrivateKeys(number int) ([]*eddsa.PrivateKey, error) {
 }
 
 func CreateAccounts(privateKeys []*eddsa.PrivateKey) ([]*zkOracle.Account, error) {
-	accounts := make([]*zkOracle.Account, nbAccounts)
+	accounts := make([]*zkOracle.Account, len(privateKeys))
 	for i, privateKey := range privateKeys {
 		accounts[i] = &zkOracle.Account{
 			Index:     big.NewInt(int64(i)),
@@ -162,7 +158,6 @@ func CreateAccounts(privateKeys []*eddsa.PrivateKey) ([]*zkOracle.Account, error
 }
 
 func AssignVariables(state *zkOracle.State, privateKeys []*eddsa.PrivateKey) (*zkOracle.AggregationCircuit, error) {
-	var assignment zkOracle.AggregationCircuit
 
 	preStateRoot, err := state.Root()
 	if err != nil {
@@ -173,8 +168,6 @@ func AssignVariables(state *zkOracle.State, privateKeys []*eddsa.PrivateKey) (*z
 	if err != nil {
 		return nil, fmt.Errorf("assign aggregator constraints: %w", err)
 	}
-
-	assignment.Aggregator = *aggregatorConstraints
 
 	validatorConstraints, validatorBits, err := AssignValidatorConstraints(state, privateKeys)
 	if err != nil {
@@ -264,8 +257,8 @@ func AssignAggregatorConstraints(state *zkOracle.State, privateKey *eddsa.Privat
 	}, nil
 }
 
-func AssignValidatorConstraints(state *zkOracle.State, privateKeys []*eddsa.PrivateKey) ([nbAccounts]zkOracle.ValidatorConstraints, *big.Int, error) {
-	var validatorConstraints [nbAccounts]zkOracle.ValidatorConstraints
+func AssignValidatorConstraints(state *zkOracle.State, privateKeys []*eddsa.PrivateKey) ([zkOracle.NumAccounts]zkOracle.ValidatorConstraints, *big.Int, error) {
+	var validatorConstraints [zkOracle.NumAccounts]zkOracle.ValidatorConstraints
 	validatorBits := big.NewInt(0)
 	for i, privateKey := range privateKeys {
 

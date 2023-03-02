@@ -148,7 +148,7 @@ func (s *StateSync) HandleBlockSubmittedEvent(ctx context.Context, event *ZKOrac
 		return fmt.Errorf("write account: %w", err)
 	}
 
-	for i := 0; i < nbAccounts; i++ {
+	for i := 0; i < NumAccounts; i++ {
 		if event.Validators.Bit(i) == 0 {
 			continue
 		}

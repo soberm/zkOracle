@@ -11,8 +11,8 @@ import (
 )
 
 const (
-	nbAccounts       = 4
-	depth            = 3
+	NumAccounts      = 16
+	Depth            = 5
 	AggregatorReward = 500000000000000
 	ValidatorReward  = 20000000000
 )
@@ -24,7 +24,7 @@ type AggregationCircuit struct {
 	Request       frontend.Variable `gnark:",public"`
 	ValidatorBits frontend.Variable `gnark:",public"`
 	Aggregator    AggregatorConstraints
-	Validators    [nbAccounts]ValidatorConstraints
+	Validators    [NumAccounts]ValidatorConstraints
 }
 
 type SlashingCircuit struct {
@@ -40,16 +40,16 @@ type AggregatorConstraints struct {
 	PostSeed          twistededwards.Point `gnark:",public"`
 	SecretKey         frontend.Variable
 	Balance           frontend.Variable
-	MerkleProof       [depth]frontend.Variable
-	MerkleProofHelper [depth - 1]frontend.Variable
+	MerkleProof       [Depth]frontend.Variable
+	MerkleProofHelper [Depth - 1]frontend.Variable
 }
 
 type ValidatorConstraints struct {
 	Index             frontend.Variable
 	PublicKey         eddsa.PublicKey
 	Balance           frontend.Variable
-	MerkleProof       [depth]frontend.Variable
-	MerkleProofHelper [depth - 1]frontend.Variable
+	MerkleProof       [Depth]frontend.Variable
+	MerkleProofHelper [Depth - 1]frontend.Variable
 	Signature         eddsa.Signature
 	BlockHash         frontend.Variable
 }
@@ -66,8 +66,8 @@ func (c *AggregationCircuit) Define(api frontend.API) error {
 	}
 
 	//Check for duplicates
-	for i := 0; i < nbAccounts; i++ {
-		for j := 0; j < nbAccounts; j++ {
+	for i := 0; i < NumAccounts; i++ {
+		for j := 0; j < NumAccounts; j++ {
 			if i == j {
 				continue
 			}

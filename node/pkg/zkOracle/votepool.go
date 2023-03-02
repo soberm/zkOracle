@@ -66,7 +66,7 @@ func (vp *VotePool) add(vote *Vote) error {
 	}
 	vp.results[requestID][vote.BlockHash] += 1
 
-	if vp.results[requestID][vote.BlockHash] == nbAccounts {
+	if vp.results[requestID][vote.BlockHash] == NumAccounts {
 		select {
 		case vp.sink <- vote.Request.Uint64():
 		default:

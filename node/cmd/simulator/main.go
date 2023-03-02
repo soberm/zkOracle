@@ -21,15 +21,10 @@ import (
 	"node/pkg/zkOracle"
 )
 
-const (
-	nbAccounts = 4
-	depth      = 3
-)
-
 func GenerateAccounts() ([]*eddsa.PrivateKey, []*zkOracle.Account, error) {
-	privateKeys := make([]*eddsa.PrivateKey, nbAccounts)
-	accounts := make([]*zkOracle.Account, nbAccounts)
-	for i := 0; i < nbAccounts; i++ {
+	privateKeys := make([]*eddsa.PrivateKey, zkOracle.NumAccounts)
+	accounts := make([]*zkOracle.Account, zkOracle.NumAccounts)
+	for i := 0; i < zkOracle.NumAccounts; i++ {
 		r := rand.New(rand.NewSource(int64(i)))
 		sk, err := eddsa.GenerateKey(r)
 		if err != nil {
@@ -46,8 +41,8 @@ func GenerateAccounts() ([]*eddsa.PrivateKey, []*zkOracle.Account, error) {
 	return privateKeys, accounts, nil
 }
 
-func GenerateVotes(privateKeys []*eddsa.PrivateKey, state *zkOracle.State) ([nbAccounts]zkOracle.ValidatorConstraints, *big.Int, error) {
-	var votes [nbAccounts]zkOracle.ValidatorConstraints
+func GenerateVotes(privateKeys []*eddsa.PrivateKey, state *zkOracle.State) ([zkOracle.NumAccounts]zkOracle.ValidatorConstraints, *big.Int, error) {
+	var votes [zkOracle.NumAccounts]zkOracle.ValidatorConstraints
 	validatorBits := big.NewInt(0)
 	for i, privateKey := range privateKeys {
 
