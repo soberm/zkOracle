@@ -81,6 +81,7 @@ contract ZKOracle {
         uint256[2][2] memory b,
         uint256[2] memory c
     ) public {
+        require(index == getAggregator(), "invalid aggregator");
         require(accounts[index] == msg.sender, "invalid index");
         blocks[request] = blockHash;
 
