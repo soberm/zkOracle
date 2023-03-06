@@ -79,6 +79,12 @@ func (a *Aggregator) Aggregate(ctx context.Context) error {
 
 func (a *Aggregator) ProcessVotes(votes []*Vote) error {
 
+	preStateData := make([]byte, len(a.state.data))
+	copy(preStateData, a.state.data)
+
+	preStateHData := make([]byte, len(a.state.hData))
+	copy(preStateHData, a.state.hData)
+
 	preStateRoot, aggregatorProof, aggregatorHelper, err := a.state.MerkleProof(a.index)
 	if err != nil {
 		return fmt.Errorf("aggregator merkle proof: %w", err)
@@ -207,6 +213,10 @@ func (a *Aggregator) ProcessVotes(votes []*Vote) error {
 	if err != nil {
 		return fmt.Errorf("proof to ethereum proof: %w", err)
 	}
+
+	//Reset state
+	a.state.SetData(preStateData)
+	a.state.SetHData(preStateHData)
 
 	auth, err := bind.NewKeyedTransactorWithChainID(a.ecdsaPrivateKey, a.chainID)
 	if err != nil {

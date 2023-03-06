@@ -3,7 +3,6 @@ package main
 import (
 	"flag"
 	"github.com/spf13/viper"
-	"net"
 	"node/pkg/zkOracle"
 	"os"
 	"os/signal"
@@ -14,29 +13,19 @@ func main() {
 	configFile := flag.String("c", "./configs/config.example.json", "filename of the config file")
 	flag.Parse()
 
-	viper.SetConfigFile(*configFile)
-	if err := viper.ReadInConfig(); err != nil {
-		panic(err)
-	}
-
-	var config zkOracle.Config
-	err := viper.Unmarshal(&config)
+	v := viper.GetViper()
+	err := zkOracle.LoadConfig(v, *configFile)
 	if err != nil {
 		panic(err)
 	}
 
-	node, err := zkOracle.NewNode(&config)
-	if err != nil {
-		panic(err)
-	}
-
-	listener, err := net.Listen("tcp", config.BindAddress)
+	node, err := zkOracle.NewNode(v)
 	if err != nil {
 		panic(err)
 	}
 
 	go func() {
-		if err := node.Run(listener); err != nil {
+		if err := node.Run(); err != nil {
 			panic(err)
 		}
 	}()

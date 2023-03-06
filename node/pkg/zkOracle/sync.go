@@ -134,10 +134,6 @@ func (s *StateSync) HandleBlockSubmittedEvent(ctx context.Context, event *ZKOrac
 		Uint64("submitter", event.Submitter.Uint64()).
 		Msg("handle block submitted event")
 
-	if event.Submitter.Uint64() == s.index {
-		return nil
-	}
-
 	aggregatorAccount, err := s.state.ReadAccount(event.Submitter.Uint64())
 	if err != nil {
 		return fmt.Errorf("read aggregator account: %w", err)

@@ -120,3 +120,15 @@ func (s *State) MerkleProof(i uint64) ([]byte, [Depth]frontend.Variable, [Depth 
 
 	return root, path, helper, nil
 }
+
+func (s *State) SetData(data []byte) {
+	s.Lock()
+	defer s.Unlock()
+	s.data = data
+}
+
+func (s *State) SetHData(hData []byte) {
+	s.Lock()
+	defer s.Unlock()
+	s.hData = hData
+}

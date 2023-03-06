@@ -17,25 +17,25 @@ import (
 const CONFIRMATIONS uint64 = 5
 
 type Validator struct {
-	index            uint64
-	ethClient        *ethclient.Client
-	zkOracleContract *ZKOracleContract
-	privateKey       *eddsa.PrivateKey
+	index      uint64
+	ethClient  *ethclient.Client
+	contract   *ZKOracleContract
+	privateKey *eddsa.PrivateKey
 }
 
 func NewValidator(index uint64, ethClient *ethclient.Client, zkOracleContract *ZKOracleContract, privateKey *eddsa.PrivateKey) *Validator {
-	return &Validator{index: index, ethClient: ethClient, zkOracleContract: zkOracleContract, privateKey: privateKey}
+	return &Validator{index: index, ethClient: ethClient, contract: zkOracleContract, privateKey: privateKey}
 }
 
 func (v *Validator) Validate(ctx context.Context) error {
-	if err := WatchEvent(ctx, v.zkOracleContract.WatchBlockRequested, v.HandleBlockRequestedEvent); err != nil {
+	if err := WatchEvent(ctx, v.contract.WatchBlockRequested, v.HandleBlockRequestedEvent); err != nil {
 		return fmt.Errorf("watch block requested events: %w", err)
 	}
+
 	return nil
 }
 
 func (v *Validator) HandleBlockRequestedEvent(ctx context.Context, event *ZKOracleContractBlockRequested) error {
-
 	logger.Info().
 		Uint64("requestNumber", event.Request.Uint64()).
 		Uint64("blockNumber", event.Number.Uint64()).
@@ -81,7 +81,7 @@ func (v *Validator) HandleBlockRequestedEvent(ctx context.Context, event *ZKOrac
 		return fmt.Errorf("sign: %w", err)
 	}
 
-	i, err := v.zkOracleContract.GetAggregator(
+	i, err := v.contract.GetAggregator(
 		&bind.CallOpts{
 			Context: ctx,
 		},
@@ -90,7 +90,7 @@ func (v *Validator) HandleBlockRequestedEvent(ctx context.Context, event *ZKOrac
 		return fmt.Errorf("get aggregator: %w", err)
 	}
 
-	addr, err := v.zkOracleContract.GetIPAddress(&bind.CallOpts{Context: ctx}, i)
+	addr, err := v.contract.GetIPAddress(&bind.CallOpts{Context: ctx}, i)
 	if err != nil {
 		return fmt.Errorf("get ip addr: %w", err)
 	}

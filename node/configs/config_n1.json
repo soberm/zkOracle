@@ -1,16 +1,17 @@
 {
-  "index": 0,
-  "bindAddress": "127.0.0.1:25565",
-  "privateKey": "ab9e742d98d92c87e03a8ca58125332fc42f03f33ab6d65bf41eb8e498f5a7242754f21de2791584ac2542dc0fc4675737567cd5928a834de7c4c642d239553f2768cc500e829c9da72b5e71518ed1b2b7503206fe2b5e8fd5b8af05335d13df",
-  "contractAddress": "Cf7Ed3AccA5a467e9e704C703E8D87F634fB0Fc9",
+  "bindaddress": "127.0.0.1:25565",
+  "contractaddress": "Cf7Ed3AccA5a467e9e704C703E8D87F634fB0Fc9",
   "ethereum": {
-    "sourceAddress": "ws://127.0.0.1:8545",
-    "targetAddress": "ws://127.0.0.1:8545",
-    "privateKey": "ac0974bec39a17e36ba4a6b4d238ff944bacb478cbed5efcae784d7bf4f2ff80"
+    "privatekey": "ac0974bec39a17e36ba4a6b4d238ff944bacb478cbed5efcae784d7bf4f2ff80",
+    "sourceaddress": "ws://127.0.0.1:8545",
+    "targetaddress": "ws://127.0.0.1:8545"
   },
+  "index": 0,
+  "privatekey": "ab9e742d98d92c87e03a8ca58125332fc42f03f33ab6d65bf41eb8e498f5a7242754f21de2791584ac2542dc0fc4675737567cd5928a834de7c4c642d239553f2768cc500e829c9da72b5e71518ed1b2b7503206fe2b5e8fd5b8af05335d13df",
+  "registered": true,
   "zkp": {
-    "provingKey": "./build/pk",
-    "verifyingKey": "./build/vk",
-    "r1cs": "./build/r1cs"
+    "provingkey": "./build/pk",
+    "r1cs": "./build/r1cs",
+    "verifyingkey": "./build/vk"
   }
 }
