@@ -11,8 +11,8 @@ import (
 )
 
 const (
-	NumAccounts      = 16
-	Depth            = 5
+	NumAccounts      = 4
+	Depth            = 3
 	AggregatorReward = 500000000000000
 	ValidatorReward  = 20000000000
 )

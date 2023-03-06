@@ -1,7 +1,6 @@
 package zkOracle
 
 import (
-	"bytes"
 	"context"
 	"crypto/ecdsa"
 	"fmt"
@@ -19,12 +18,6 @@ import (
 	"github.com/ethereum/go-ethereum/ethclient"
 	"math/big"
 )
-
-type Proof struct {
-	a [2]*big.Int
-	b [2][2]*big.Int
-	c [2]*big.Int
-}
 
 type Aggregator struct {
 	index            uint64
@@ -210,24 +203,10 @@ func (a *Aggregator) ProcessVotes(votes []*Vote) error {
 		return fmt.Errorf("verify proof: %w", err)
 	}
 
-	var proof Proof
-
-	// get proof bytes
-	var buf bytes.Buffer
-	_, err = p.WriteRawTo(&buf)
+	proof, err := ProofToEthereumProof(p)
 	if err != nil {
-		return fmt.Errorf("write proof: %w", err)
+		return fmt.Errorf("proof to ethereum proof: %w", err)
 	}
-	proofBytes := buf.Bytes()
-
-	proof.a[0] = new(big.Int).SetBytes(proofBytes[fp.Bytes*0 : fp.Bytes*1])
-	proof.a[1] = new(big.Int).SetBytes(proofBytes[fp.Bytes*1 : fp.Bytes*2])
-	proof.b[0][0] = new(big.Int).SetBytes(proofBytes[fp.Bytes*2 : fp.Bytes*3])
-	proof.b[0][1] = new(big.Int).SetBytes(proofBytes[fp.Bytes*3 : fp.Bytes*4])
-	proof.b[1][0] = new(big.Int).SetBytes(proofBytes[fp.Bytes*4 : fp.Bytes*5])
-	proof.b[1][1] = new(big.Int).SetBytes(proofBytes[fp.Bytes*5 : fp.Bytes*6])
-	proof.c[0] = new(big.Int).SetBytes(proofBytes[fp.Bytes*6 : fp.Bytes*7])
-	proof.c[1] = new(big.Int).SetBytes(proofBytes[fp.Bytes*7 : fp.Bytes*8])
 
 	auth, err := bind.NewKeyedTransactorWithChainID(a.ecdsaPrivateKey, a.chainID)
 	if err != nil {
