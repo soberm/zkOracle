@@ -20,7 +20,7 @@ contract ZKOracle {
         uint256 y;
     }
 
-    uint256 public exitDelay = 604800;
+    uint256 public exitDelay = 0;
 
     mapping(uint256 => address) accounts;
     mapping(address => uint256) exitTimes;
@@ -148,7 +148,7 @@ contract ZKOracle {
         uint256[] memory path,
         uint256[] memory helper
     ) public payable {
-        require(msg.value > toReplace.balance, "value too low");
+        require(msg.value >= toReplace.balance, "value too low");
         require(merkleTree.verify(path, helper), "account not included");
         require(
             path[0] == hashAccount(toReplace),

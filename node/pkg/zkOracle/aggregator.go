@@ -236,9 +236,9 @@ func (a *Aggregator) ProcessVotes(votes []*Vote) error {
 		new(big.Int).SetBytes(postStateRoot),
 		postSeedX,
 		postSeedY,
-		proof.a,
-		proof.b,
-		proof.c,
+		proof.A,
+		proof.B,
+		proof.C,
 	)
 	if err != nil {
 		return fmt.Errorf("submit block: %w", err)

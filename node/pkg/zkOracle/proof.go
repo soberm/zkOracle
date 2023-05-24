@@ -9,9 +9,9 @@ import (
 )
 
 type EthereumProof struct {
-	a [2]*big.Int
-	b [2][2]*big.Int
-	c [2]*big.Int
+	A [2]*big.Int
+	B [2][2]*big.Int
+	C [2]*big.Int
 }
 
 func ProofToEthereumProof(p groth16.Proof) (*EthereumProof, error) {
@@ -25,14 +25,14 @@ func ProofToEthereumProof(p groth16.Proof) (*EthereumProof, error) {
 	}
 	proofBytes := buf.Bytes()
 
-	proof.a[0] = new(big.Int).SetBytes(proofBytes[fp.Bytes*0 : fp.Bytes*1])
-	proof.a[1] = new(big.Int).SetBytes(proofBytes[fp.Bytes*1 : fp.Bytes*2])
-	proof.b[0][0] = new(big.Int).SetBytes(proofBytes[fp.Bytes*2 : fp.Bytes*3])
-	proof.b[0][1] = new(big.Int).SetBytes(proofBytes[fp.Bytes*3 : fp.Bytes*4])
-	proof.b[1][0] = new(big.Int).SetBytes(proofBytes[fp.Bytes*4 : fp.Bytes*5])
-	proof.b[1][1] = new(big.Int).SetBytes(proofBytes[fp.Bytes*5 : fp.Bytes*6])
-	proof.c[0] = new(big.Int).SetBytes(proofBytes[fp.Bytes*6 : fp.Bytes*7])
-	proof.c[1] = new(big.Int).SetBytes(proofBytes[fp.Bytes*7 : fp.Bytes*8])
+	proof.A[0] = new(big.Int).SetBytes(proofBytes[fp.Bytes*0 : fp.Bytes*1])
+	proof.A[1] = new(big.Int).SetBytes(proofBytes[fp.Bytes*1 : fp.Bytes*2])
+	proof.B[0][0] = new(big.Int).SetBytes(proofBytes[fp.Bytes*2 : fp.Bytes*3])
+	proof.B[0][1] = new(big.Int).SetBytes(proofBytes[fp.Bytes*3 : fp.Bytes*4])
+	proof.B[1][0] = new(big.Int).SetBytes(proofBytes[fp.Bytes*4 : fp.Bytes*5])
+	proof.B[1][1] = new(big.Int).SetBytes(proofBytes[fp.Bytes*5 : fp.Bytes*6])
+	proof.C[0] = new(big.Int).SetBytes(proofBytes[fp.Bytes*6 : fp.Bytes*7])
+	proof.C[1] = new(big.Int).SetBytes(proofBytes[fp.Bytes*7 : fp.Bytes*8])
 
 	return &proof, nil
 }

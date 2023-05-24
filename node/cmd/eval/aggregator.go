@@ -1,6 +1,8 @@
 package main
 
 import (
+	"context"
+	"crypto/ecdsa"
 	"encoding/csv"
 	"fmt"
 	"github.com/consensys/gnark-crypto/ecc"
@@ -14,18 +16,27 @@ import (
 	"github.com/consensys/gnark/frontend/cs/r1cs"
 	"github.com/consensys/gnark/std/algebra/twistededwards"
 	eddsa2 "github.com/consensys/gnark/std/signature/eddsa"
+	"github.com/ethereum/go-ethereum/accounts/abi/bind"
 	"github.com/ethereum/go-ethereum/common"
+	"github.com/ethereum/go-ethereum/ethclient"
 	"github.com/status-im/keycard-go/hexutils"
 	"math/big"
+	"math/rand"
 	"node/pkg/zkOracle"
 	"os"
 	"strconv"
 	"time"
 )
 
+const aggregatorIndex = 1
+
 type AggregationCircuitAnalyzer struct {
-	runs int
-	dst  string
+	runs       int
+	dst        string
+	ethClient  *ethclient.Client
+	contract   *zkOracle.ZKOracleContract
+	privateKey *ecdsa.PrivateKey
+	csvWriter  *csv.Writer
 }
 
 func (a *AggregationCircuitAnalyzer) Analyze() {
@@ -37,10 +48,26 @@ func (a *AggregationCircuitAnalyzer) Analyze() {
 		return
 	}
 
-	pk, vk, err := groth16.Setup(_r1cs)
+	pkFile, err := os.Open("./build/pk")
 	if err != nil {
-		fmt.Printf("%v", err)
-		return
+		panic(err)
+	}
+
+	pk := groth16.NewProvingKey(ecc.BN254)
+	_, err = pk.ReadFrom(pkFile)
+	if err != nil {
+		panic(err)
+	}
+
+	vkFile, err := os.Open("./build/vk")
+	if err != nil {
+		panic(err)
+	}
+
+	vk := groth16.NewVerifyingKey(ecc.BN254)
+	_, err = vk.ReadFrom(vkFile)
+	if err != nil {
+		panic(err)
 	}
 
 	f, err := os.Create(a.dst)
@@ -55,10 +82,10 @@ func (a *AggregationCircuitAnalyzer) Analyze() {
 		panic(err)
 	}
 
-	writer := csv.NewWriter(f)
+	a.csvWriter = csv.NewWriter(f)
 
 	headerRow := []string{
-		"ID", "provingTime", "memoryUsage",
+		"accounts", "registerCosts", "getBlockByNumberCosts", "submitBlockCosts", "replaceCosts", "exitCosts", "withdrawCosts", "provingTime", "memoryUsage",
 	}
 
 	data := [][]string{
@@ -72,6 +99,16 @@ func (a *AggregationCircuitAnalyzer) Analyze() {
 		}
 
 		accounts, err := CreateAccounts(privateKeys)
+		if err != nil {
+			panic(err)
+		}
+
+		registerCosts, err := a.RegisterAccounts(accounts)
+		if err != nil {
+			panic(err)
+		}
+
+		getBlockByNumberCosts, err := a.RequestBlockByNumber()
 		if err != nil {
 			panic(err)
 		}
@@ -107,8 +144,6 @@ func (a *AggregationCircuitAnalyzer) Analyze() {
 		provingTime := time.Since(start)
 		stop <- struct{}{}
 
-		data = append(data, []string{strconv.Itoa(i), strconv.Itoa(int(provingTime.Milliseconds())), strconv.Itoa(int(<-memoryMeasurement))})
-
 		pw, err := w.Public()
 		if err != nil {
 			fmt.Printf("%v", err)
@@ -119,14 +154,287 @@ func (a *AggregationCircuitAnalyzer) Analyze() {
 		if err != nil {
 			panic(err)
 		}
+
+		submitBlockCosts, err := a.SubmitBlock(p, assignment)
+		if err != nil {
+			panic(err)
+		}
+
+		replaceCosts, err := a.ReplaceAccount(0, state)
+		if err != nil {
+			panic(err)
+		}
+
+		exitCosts, err := a.ExitAccounts(accounts, state)
+		if err != nil {
+			panic(err)
+		}
+
+		withdrawCosts, err := a.WithDrawAccounts(accounts, state)
+		if err != nil {
+			panic(err)
+		}
+
+		data = append(data,
+			[]string{
+				strconv.Itoa(zkOracle.NumAccounts),
+				strconv.Itoa(int(registerCosts)),
+				strconv.Itoa(int(getBlockByNumberCosts)),
+				strconv.Itoa(int(submitBlockCosts)),
+				strconv.Itoa(int(replaceCosts)),
+				strconv.Itoa(int(exitCosts)),
+				strconv.Itoa(int(withdrawCosts)),
+				strconv.Itoa(int(provingTime.Milliseconds())),
+				strconv.Itoa(int(<-memoryMeasurement)),
+			})
 	}
 
-	err = writer.WriteAll(data)
+	err = a.csvWriter.WriteAll(data)
 	if err != nil {
 		fmt.Printf("%v", err)
 		return
 	}
-	writer.Flush()
+	a.csvWriter.Flush()
+}
+
+func (a *AggregationCircuitAnalyzer) RegisterAccounts(accounts []*zkOracle.Account) (uint64, error) {
+	chainID, err := a.ethClient.ChainID(context.Background())
+	if err != nil {
+		panic(err)
+	}
+
+	auth, err := bind.NewKeyedTransactorWithChainID(a.privateKey, chainID)
+	if err != nil {
+		panic(err)
+	}
+	auth.GasPrice = big.NewInt(20000000000)
+
+	var averageCost uint64
+	for _, account := range accounts {
+		tx, err := a.contract.Register(auth, *PublicKeyToZKOraclePublicKey(account.PublicKey), "localhost:25565")
+		if err != nil {
+			return 0, fmt.Errorf("register: %v", err)
+		}
+		receipt, err := bind.WaitMined(context.Background(), a.ethClient, tx)
+		if err != nil {
+			return 0, fmt.Errorf("wait mined: %v", err)
+		}
+		averageCost += receipt.CumulativeGasUsed
+	}
+	averageCost = averageCost / uint64(len(accounts))
+	return averageCost, nil
+}
+
+func (a *AggregationCircuitAnalyzer) RequestBlockByNumber() (uint64, error) {
+	chainID, err := a.ethClient.ChainID(context.Background())
+	if err != nil {
+		panic(err)
+	}
+
+	auth, err := bind.NewKeyedTransactorWithChainID(a.privateKey, chainID)
+	if err != nil {
+		panic(err)
+	}
+	auth.GasPrice = big.NewInt(20000000000)
+	auth.Value = big.NewInt(1000000000000000)
+
+	tx, err := a.contract.GetBlockByNumber(auth, big.NewInt(42))
+	if err != nil {
+		return 0, fmt.Errorf("register: %v", err)
+	}
+
+	receipt, err := bind.WaitMined(context.Background(), a.ethClient, tx)
+	if err != nil {
+		return 0, fmt.Errorf("wait mined: %v", err)
+	}
+
+	return receipt.CumulativeGasUsed, nil
+}
+
+func (a *AggregationCircuitAnalyzer) ReplaceAccount(i uint64, state *zkOracle.State) (uint64, error) {
+	chainID, err := a.ethClient.ChainID(context.Background())
+	if err != nil {
+		panic(err)
+	}
+
+	auth, err := bind.NewKeyedTransactorWithChainID(a.privateKey, chainID)
+	if err != nil {
+		panic(err)
+	}
+	auth.GasPrice = big.NewInt(20000000000)
+	auth.Value = big.NewInt(200000000000)
+
+	r := rand.New(rand.NewSource(time.Now().UnixNano()))
+	sk, err := eddsa.GenerateKey(r)
+	if err != nil {
+		panic(err)
+	}
+	newAccount := &zkOracle.Account{
+		Index:     big.NewInt(int64(i)),
+		PublicKey: &sk.PublicKey,
+		Balance:   big.NewInt(200000000000),
+	}
+
+	account, err := state.ReadAccount(i)
+	if err != nil {
+		panic(err)
+	}
+
+	_, path, helper, err := state.MerkleProofTest(account.Index.Uint64())
+	if err != nil {
+		panic(err)
+	}
+
+	tx, err := a.contract.Replace(auth, *PublicKeyToZKOraclePublicKey(newAccount.PublicKey), *AccountToZKOracleAccount(&account), path[:], helper[:])
+	if err != nil {
+		return 0, fmt.Errorf("register: %v", err)
+	}
+
+	receipt, err := bind.WaitMined(context.Background(), a.ethClient, tx)
+	if err != nil {
+		return 0, fmt.Errorf("wait mined: %v", err)
+	}
+
+	err = state.WriteAccount(*newAccount)
+	if err != nil {
+		return 0, fmt.Errorf("wait mined: %v", err)
+	}
+
+	return receipt.CumulativeGasUsed, nil
+}
+
+func (a *AggregationCircuitAnalyzer) ExitAccounts(accounts []*zkOracle.Account, state *zkOracle.State) (uint64, error) {
+	chainID, err := a.ethClient.ChainID(context.Background())
+	if err != nil {
+		panic(err)
+	}
+
+	auth, err := bind.NewKeyedTransactorWithChainID(a.privateKey, chainID)
+	if err != nil {
+		panic(err)
+	}
+	auth.GasPrice = big.NewInt(20000000000)
+
+	var averageCost uint64
+	for i := 0; i < len(accounts); i++ {
+
+		account, err := state.ReadAccount(uint64(i))
+		if err != nil {
+			panic(err)
+		}
+
+		_, path, helper, err := state.MerkleProofTest(account.Index.Uint64())
+		if err != nil {
+			panic(err)
+		}
+
+		tx, err := a.contract.Exit(auth, *AccountToZKOracleAccount(&account), path[:], helper[:])
+		if err != nil {
+			return 0, fmt.Errorf("register: %v", err)
+		}
+		receipt, err := bind.WaitMined(context.Background(), a.ethClient, tx)
+		if err != nil {
+			return 0, fmt.Errorf("wait mined: %v", err)
+		}
+		averageCost += receipt.CumulativeGasUsed
+	}
+	averageCost = averageCost / uint64(len(accounts))
+	return averageCost, nil
+}
+
+func (a *AggregationCircuitAnalyzer) WithDrawAccounts(accounts []*zkOracle.Account, state *zkOracle.State) (uint64, error) {
+	chainID, err := a.ethClient.ChainID(context.Background())
+	if err != nil {
+		panic(err)
+	}
+
+	auth, err := bind.NewKeyedTransactorWithChainID(a.privateKey, chainID)
+	if err != nil {
+		panic(err)
+	}
+	auth.GasPrice = big.NewInt(20000000000)
+
+	var averageCost uint64
+	for i := 0; i < len(accounts); i++ {
+
+		account, err := state.ReadAccount(uint64(i))
+		if err != nil {
+			panic(err)
+		}
+
+		_, path, helper, err := state.MerkleProofTest(account.Index.Uint64())
+		if err != nil {
+			panic(err)
+		}
+
+		tx, err := a.contract.Withdraw(auth, *AccountToZKOracleAccount(&account), path[:], helper[:])
+		if err != nil {
+			return 0, fmt.Errorf("register: %v", err)
+		}
+		receipt, err := bind.WaitMined(context.Background(), a.ethClient, tx)
+		if err != nil {
+			return 0, fmt.Errorf("wait mined: %v", err)
+		}
+
+		account.Balance = big.NewInt(0)
+		err = state.WriteAccount(account)
+		if err != nil {
+			panic(err)
+		}
+
+		averageCost += receipt.CumulativeGasUsed
+	}
+	averageCost = averageCost / uint64(len(accounts))
+	return averageCost, nil
+}
+
+func (a *AggregationCircuitAnalyzer) SubmitBlock(p groth16.Proof, assignment *zkOracle.AggregationCircuit) (uint64, error) {
+	proof, err := zkOracle.ProofToEthereumProof(p)
+	if err != nil {
+		panic(err)
+	}
+
+	chainID, err := a.ethClient.ChainID(context.Background())
+	if err != nil {
+		panic(err)
+	}
+
+	auth, err := bind.NewKeyedTransactorWithChainID(a.privateKey, chainID)
+	if err != nil {
+		panic(err)
+	}
+	auth.GasPrice = big.NewInt(20000000000)
+
+	var blockHash [32]byte
+	copy(blockHash[2:], hexutils.HexToBytes("4e20b625e3020de61240b36ab7dba952e662c03214206559c03b004f08f3")[:30])
+
+	postStateRoot := assignment.PostStateRoot.([]byte)
+	validatorBits := assignment.ValidatorBits.(*big.Int)
+	postSeedX := assignment.Aggregator.PostSeed.X.(*big.Int)
+	postSeedY := assignment.Aggregator.PostSeed.Y.(*big.Int)
+
+	tx, err := a.contract.SubmitBlock(
+		auth,
+		new(big.Int).SetUint64(aggregatorIndex),
+		big.NewInt(0),
+		validatorBits,
+		blockHash,
+		new(big.Int).SetBytes(postStateRoot),
+		postSeedX,
+		postSeedY,
+		proof.A,
+		proof.B,
+		proof.C,
+	)
+	if err != nil {
+		panic(err)
+	}
+
+	receipt, err := bind.WaitMined(context.Background(), a.ethClient, tx)
+	if err != nil {
+		panic(err)
+	}
+	return receipt.CumulativeGasUsed, nil
 }
 
 func (a *AggregationCircuitAnalyzer) AssignVariables(state *zkOracle.State, privateKeys []*eddsa.PrivateKey) (*zkOracle.AggregationCircuit, error) {
@@ -136,7 +444,7 @@ func (a *AggregationCircuitAnalyzer) AssignVariables(state *zkOracle.State, priv
 		return nil, fmt.Errorf("pre state root: %w", err)
 	}
 
-	aggregatorConstraints, err := a.AssignAggregatorConstraints(state, privateKeys[2])
+	aggregatorConstraints, err := a.AssignAggregatorConstraints(state, privateKeys[aggregatorIndex])
 	if err != nil {
 		return nil, fmt.Errorf("assign aggregator constraints: %w", err)
 	}
@@ -154,7 +462,7 @@ func (a *AggregationCircuitAnalyzer) AssignVariables(state *zkOracle.State, priv
 	return &zkOracle.AggregationCircuit{
 		PreStateRoot:  preStateRoot,
 		PostStateRoot: postStateRoot,
-		BlockHash:     hexutils.HexToBytes("fc404e20b625e3020de61240b36ab7dba952e662c03214206559c03b004f08f3"),
+		BlockHash:     hexutils.HexToBytes("4e20b625e3020de61240b36ab7dba952e662c03214206559c03b004f08f3"),
 		Request:       big.NewInt(0),
 		ValidatorBits: validatorBits,
 		Aggregator:    *aggregatorConstraints,
@@ -165,13 +473,13 @@ func (a *AggregationCircuitAnalyzer) AssignVariables(state *zkOracle.State, priv
 func (a *AggregationCircuitAnalyzer) AssignAggregatorConstraints(state *zkOracle.State, privateKey *eddsa.PrivateKey) (*zkOracle.AggregatorConstraints, error) {
 	var assignment zkOracle.AggregationCircuit
 
-	merkleRoot, proof, helper, err := state.MerkleProof(2)
+	merkleRoot, proof, helper, err := state.MerkleProof(aggregatorIndex)
 	if err != nil {
 		return nil, fmt.Errorf("merkle proof: %w", err)
 	}
 
 	assignment.PreStateRoot = merkleRoot
-	assignment.BlockHash = hexutils.HexToBytes("fc404e20b625e3020de61240b36ab7dba952e662c03214206559c03b004f08f3")
+	assignment.BlockHash = hexutils.HexToBytes("4e20b625e3020de61240b36ab7dba952e662c03214206559c03b004f08f3")
 	assignment.Request = big.NewInt(0)
 
 	testX := new(big.Int)
@@ -208,7 +516,7 @@ func (a *AggregationCircuitAnalyzer) AssignAggregatorConstraints(state *zkOracle
 	postSeed.X.ToBigIntRegular(postSeedX)
 	postSeed.Y.ToBigIntRegular(postSeedY)
 
-	account, err := state.ReadAccount(2)
+	account, err := state.ReadAccount(aggregatorIndex)
 	if err != nil {
 		return nil, fmt.Errorf("read account: %w", err)
 	}
@@ -219,7 +527,7 @@ func (a *AggregationCircuitAnalyzer) AssignAggregatorConstraints(state *zkOracle
 	}
 
 	return &zkOracle.AggregatorConstraints{
-		Index:             2,
+		Index:             aggregatorIndex,
 		PreSeed:           twistededwards.Point{X: preSeedX, Y: preSeedY},
 		PostSeed:          twistededwards.Point{X: postSeedX, Y: postSeedY},
 		SecretKey:         sk,
@@ -236,14 +544,14 @@ func (a *AggregationCircuitAnalyzer) AssignValidatorConstraints(state *zkOracle.
 
 		var pub eddsa2.PublicKey
 		var sig eddsa2.Signature
-		result := hexutils.HexToBytes("fc404e20b625e3020de61240b36ab7dba952e662c03214206559c03b004f08f3")
+		result := hexutils.HexToBytes("4e20b625e3020de61240b36ab7dba952e662c03214206559c03b004f08f3")
 
 		pub.Assign(ecc.BN254, privateKey.PublicKey.Bytes())
 
 		vote := &zkOracle.Vote{
 			Index:     uint64(i),
 			Request:   big.NewInt(0),
-			BlockHash: common.HexToHash("fc404e20b625e3020de61240b36ab7dba952e662c03214206559c03b004f08f3"),
+			BlockHash: common.HexToHash("4e20b625e3020de61240b36ab7dba952e662c03214206559c03b004f08f3"),
 		}
 
 		hasher := mimc.NewMiMC()

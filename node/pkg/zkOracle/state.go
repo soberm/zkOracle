@@ -121,6 +121,36 @@ func (s *State) MerkleProof(i uint64) ([]byte, [Depth]frontend.Variable, [Depth 
 	return root, path, helper, nil
 }
 
+func (s *State) MerkleProofTest(i uint64) ([]byte, [Depth]*big.Int, [Depth - 1]*big.Int, error) {
+	s.RLock()
+	defer s.RUnlock()
+
+	var path [Depth]*big.Int
+	var helper [Depth - 1]*big.Int
+
+	var stateBuf bytes.Buffer
+	_, err := stateBuf.Write(s.hData)
+	if err != nil {
+		return nil, path, helper, fmt.Errorf("%v", err)
+	}
+	root, proof, numLeaves, _ := merkletree.BuildReaderProof(&stateBuf, s.hFunc, s.hFunc.Size(), i)
+	proofHelper := merkle.GenerateProofHelper(proof, i, numLeaves)
+
+	if !merkletree.VerifyProof(s.hFunc, root, proof, i, numLeaves) {
+		return nil, path, helper, errors.New("invalid merkle proof")
+	}
+
+	for i := 0; i < len(proof); i++ {
+		path[i] = big.NewInt(0).SetBytes(proof[i])
+	}
+
+	for i := 0; i < len(proofHelper); i++ {
+		helper[i] = big.NewInt(int64(proofHelper[i]))
+	}
+
+	return root, path, helper, nil
+}
+
 func (s *State) SetData(data []byte) {
 	s.Lock()
 	defer s.Unlock()
