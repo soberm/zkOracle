@@ -12,9 +12,15 @@ async function main() {
 
   const merkleTree = await MerkleTree.deploy(2);
 
-  const Verifier = await ethers.getContractFactory("Verifier");
+  const AggregationVerifier = await ethers.getContractFactory(
+    "AggregationVerifier"
+  );
 
-  const verifier = await Verifier.deploy();
+  const aggregationVerifier = await AggregationVerifier.deploy();
+
+  const SlashingVerifier = await ethers.getContractFactory("SlashingVerifier");
+
+  const slashingVerifier = await SlashingVerifier.deploy();
 
   const ZKOracle = await ethers.getContractFactory(
     "contracts/ZKOracle.sol:ZKOracle"
@@ -22,7 +28,8 @@ async function main() {
 
   const zkOracle = await ZKOracle.deploy(
     merkleTree.address,
-    verifier.address,
+    aggregationVerifier.address,
+    slashingVerifier.address,
     "5491184307399689246197683245202605692069525215510636283504164930708453453685",
     "2576048849028791939551994783150968389338965397796293068226051430557680319904"
   );

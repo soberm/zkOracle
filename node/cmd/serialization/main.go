@@ -14,24 +14,32 @@ import (
 
 func main() {
 
-	buildPath := flag.String("c", "./build/", "filename of the config file")
+	b := flag.String("b", "./build/", "filename of the config file")
+	c := flag.Bool("c", true, "aggregation or slashing circuit")
+
 	flag.Parse()
 
-	if _, err := os.Stat(*buildPath); os.IsNotExist(err) {
-		err := os.MkdirAll(*buildPath, 0700)
+	if _, err := os.Stat(*b); os.IsNotExist(err) {
+		err := os.MkdirAll(*b, 0700)
 		if err != nil {
 			panic(err)
 		}
 	}
 
-	var circuit zkOracle.AggregationCircuit
+	var circuit frontend.Circuit
 
-	_r1cs, err := frontend.Compile(ecc.BN254, r1cs.NewBuilder, &circuit)
+	if *c {
+		circuit = &zkOracle.AggregationCircuit{}
+	} else {
+		circuit = &zkOracle.SlashingCircuit{}
+	}
+
+	_r1cs, err := frontend.Compile(ecc.BN254, r1cs.NewBuilder, circuit)
 	if err != nil {
 		panic(err)
 	}
 
-	file, err := os.Create(path.Join(*buildPath, "r1cs"))
+	file, err := os.Create(path.Join(*b, "r1cs"))
 	if err != nil {
 		panic(err)
 	}
@@ -47,7 +55,7 @@ func main() {
 		return
 	}
 
-	file, err = os.Create(path.Join(*buildPath, "pk"))
+	file, err = os.Create(path.Join(*b, "pk"))
 	if err != nil {
 		panic(err)
 	}
@@ -57,7 +65,7 @@ func main() {
 		panic(err)
 	}
 
-	file, err = os.Create(path.Join(*buildPath, "vk"))
+	file, err = os.Create(path.Join(*b, "vk"))
 	if err != nil {
 		panic(err)
 	}
@@ -66,7 +74,7 @@ func main() {
 		panic(err)
 	}
 
-	file, err = os.Create(path.Join(*buildPath, "Verifier.sol"))
+	file, err = os.Create(path.Join(*b, "Verifier.sol"))
 	if err != nil {
 		panic(err)
 	}

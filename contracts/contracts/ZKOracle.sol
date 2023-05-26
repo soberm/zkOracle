@@ -3,11 +3,13 @@ pragma solidity ^0.8.9;
 
 import "hardhat/console.sol";
 import "./MerkleTree.sol";
-import "./Verifier.sol";
+import "./AggregationVerifier.sol";
+import "./SlashingVerifier.sol";
 
 contract ZKOracle {
     MerkleTree merkleTree;
-    Verifier verifier;
+    AggregationVerifier aggregationVerifier;
+    SlashingVerifier slashingVerifier;
 
     struct Account {
         uint256 index;
@@ -50,14 +52,18 @@ contract ZKOracle {
         uint256 request
     );
 
+    event Slashed(uint256 index);
+
     constructor(
         address merkleTreeAddress,
-        address verifierAddress,
+        address aggregationVerifierAddress,
+        address slashingVerifierAddress,
         uint256 _seedX,
         uint256 _seedY
     ) {
         merkleTree = MerkleTree(merkleTreeAddress);
-        verifier = Verifier(verifierAddress);
+        aggregationVerifier = AggregationVerifier(aggregationVerifierAddress);
+        slashingVerifier = SlashingVerifier(slashingVerifierAddress);
         seedX = _seedX;
         seedY = _seedY;
     }
@@ -98,13 +104,42 @@ contract ZKOracle {
             postSeedY
         ];
 
-        require(verifier.verifyProof(a, b, c, input), "invalid proof");
+        require(
+            aggregationVerifier.verifyProof(a, b, c, input),
+            "invalid proof"
+        );
 
         seedX = postSeedX;
         seedY = postSeedY;
 
         merkleTree.setRoot(postStateRoot);
         emit BlockSubmitted(index, validators, request);
+    }
+
+    function slash(
+        uint256 slasherIndex,
+        uint256 slashedIndex,
+        uint256 request,
+        uint256 postStateRoot,
+        uint256[2] memory a,
+        uint256[2][2] memory b,
+        uint256[2] memory c
+    ) public {
+        require(blocks[request] != 0, "pending request");
+
+        uint[6] memory input = [
+            merkleTree.getRoot(),
+            postStateRoot,
+            uint256(blocks[request]),
+            request,
+            slasherIndex,
+            slashedIndex
+        ];
+
+        require(slashingVerifier.verifyProof(a, b, c, input), "invalid proof");
+
+        merkleTree.setRoot(postStateRoot);
+        emit Slashed(0);
     }
 
     function getAggregator() public view returns (uint) {
