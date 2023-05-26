@@ -84,6 +84,7 @@ func (c *SlashingCircuit) Define(api frontend.API) error {
 	root := ComputeRootFromPath(api, hFunc, c.Validator.MerkleProof[:], c.Validator.MerkleProofHelper[:])
 
 	// Verify that the public key from the Merkle proof matches the computed public key of the slasher
+	hFunc.Reset()
 	hFunc.Write(c.Slasher.Index)
 	hFunc.Write(c.Slasher.PublicKey.A.X)
 	hFunc.Write(c.Slasher.PublicKey.A.Y)
@@ -104,7 +105,7 @@ func (c *SlashingCircuit) Define(api frontend.API) error {
 
 	//Compute new root
 	hFunc.Reset()
-	root = ComputeRootFromPath(api, hFunc, c.Validator.MerkleProof[:], c.Validator.MerkleProofHelper[:])
+	root = ComputeRootFromPath(api, hFunc, c.Slasher.MerkleProof[:], c.Slasher.MerkleProofHelper[:])
 
 	api.AssertIsDifferent(c.BlockHash, c.Validator.BlockHash)
 	api.AssertIsEqual(c.PostStateRoot, root)

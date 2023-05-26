@@ -264,7 +264,7 @@ func main() {
 		panic(err)
 	}
 
-	contract, err := zkOracle.NewZKOracleContract(common.HexToAddress("0xCf7Ed3AccA5a467e9e704C703E8D87F634fB0Fc9"), ethClient)
+	contract, err := zkOracle.NewZKOracleContract(common.HexToAddress("0xDc64a140Aa3E981100a9becA4E685f962f0cF6C9"), ethClient)
 	if err != nil {
 		panic(err)
 	}

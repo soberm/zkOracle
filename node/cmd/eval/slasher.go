@@ -132,7 +132,7 @@ func (a *SlashingCircuitAnalyzer) AssignVariables(state *zkOracle.State, private
 		return nil, fmt.Errorf("pre state root: %w", err)
 	}
 
-	validatorConstraints, balance, err := a.AssignValidatorConstraints(state, privateKeys[0])
+	validatorConstraints, balance, err := a.AssignSlashedValidatorConstraints(state, privateKeys[0])
 	if err != nil {
 		return nil, fmt.Errorf("assign validator constraints: %w", err)
 	}
@@ -187,8 +187,8 @@ func (a *SlashingCircuitAnalyzer) AssignSlasherConstraints(state *zkOracle.State
 	}, nil
 }
 
-func (a *SlashingCircuitAnalyzer) AssignValidatorConstraints(state *zkOracle.State, privateKey *eddsa.PrivateKey) (zkOracle.ValidatorConstraints, *big.Int, error) {
-	var validatorConstraints zkOracle.ValidatorConstraints
+func (a *SlashingCircuitAnalyzer) AssignSlashedValidatorConstraints(state *zkOracle.State, privateKey *eddsa.PrivateKey) (zkOracle.SlashedValidatorConstraints, *big.Int, error) {
+	var validatorConstraints zkOracle.SlashedValidatorConstraints
 
 	var pub eddsa2.PublicKey
 	var sig eddsa2.Signature
@@ -223,7 +223,7 @@ func (a *SlashingCircuitAnalyzer) AssignValidatorConstraints(state *zkOracle.Sta
 	}
 
 	balance := new(big.Int).Set(account.Balance)
-	validatorConstraints = zkOracle.ValidatorConstraints{
+	validatorConstraints = zkOracle.SlashedValidatorConstraints{
 		Index:             account.Index,
 		PublicKey:         pub,
 		Balance:           balance, //passed by reference

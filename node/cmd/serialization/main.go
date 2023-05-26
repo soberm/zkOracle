@@ -64,6 +64,7 @@ func main() {
 	if err != nil {
 		panic(err)
 	}
+	_ = file.Close()
 
 	file, err = os.Create(path.Join(*b, "vk"))
 	if err != nil {
@@ -73,6 +74,7 @@ func main() {
 	if err != nil {
 		panic(err)
 	}
+	_ = file.Close()
 
 	file, err = os.Create(path.Join(*b, "Verifier.sol"))
 	if err != nil {
