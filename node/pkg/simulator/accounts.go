@@ -1,4 +1,4 @@
-package main
+package simulator
 
 import (
 	"fmt"
@@ -9,7 +9,7 @@ import (
 	"time"
 )
 
-func GeneratePrivateKeys(number int) ([]*eddsa.PrivateKey, error) {
+func generatePrivateKeys(number int) ([]*eddsa.PrivateKey, error) {
 	privateKeys := make([]*eddsa.PrivateKey, number)
 	for i := 0; i < number; i++ {
 		r := rand.New(rand.NewSource(time.Now().UnixNano()))
@@ -22,7 +22,7 @@ func GeneratePrivateKeys(number int) ([]*eddsa.PrivateKey, error) {
 	return privateKeys, nil
 }
 
-func CreateAccounts(privateKeys []*eddsa.PrivateKey) ([]*zkOracle.Account, error) {
+func createAccounts(privateKeys []*eddsa.PrivateKey) ([]*zkOracle.Account, error) {
 	accounts := make([]*zkOracle.Account, len(privateKeys))
 	for i, privateKey := range privateKeys {
 		accounts[i] = &zkOracle.Account{

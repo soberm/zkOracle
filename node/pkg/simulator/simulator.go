@@ -1,9 +1,11 @@
-package main
+package simulator
 
+import "C"
 import (
 	"context"
 	"crypto/ecdsa"
 	"encoding/csv"
+	"errors"
 	"fmt"
 	"github.com/consensys/gnark-crypto/ecc"
 	"github.com/consensys/gnark-crypto/ecc/bn254/fp"
@@ -18,27 +20,81 @@ import (
 	eddsa2 "github.com/consensys/gnark/std/signature/eddsa"
 	"github.com/ethereum/go-ethereum/accounts/abi/bind"
 	"github.com/ethereum/go-ethereum/common"
+	"github.com/ethereum/go-ethereum/crypto"
 	"github.com/ethereum/go-ethereum/ethclient"
 	"github.com/status-im/keycard-go/hexutils"
 	"math/big"
 	"math/rand"
 	"node/pkg/zkOracle"
 	"os"
+	"runtime"
 	"strconv"
 	"time"
 )
 
-type AggregationCircuitAnalyzer struct {
+type SimulationMode int32
+
+const (
+	OnlyContractCosts    SimulationMode = 0
+	OnlyAggregationProof                = 1
+	OnlySlashingProof                   = 2
+)
+
+type simulator struct {
 	runs            int
+	mode            SimulationMode
 	dst             string
 	ethClient       *ethclient.Client
 	contract        *zkOracle.ZKOracleContract
 	privateKey      *ecdsa.PrivateKey
+	committeeSize   int
 	csvWriter       *csv.Writer
 	aggregatorIndex *big.Int
 }
 
-func (a *AggregationCircuitAnalyzer) Analyze() {
+func NewSimulator(runs int, dst string, mode SimulationMode, ethClientURL string, contractAddress string, privateKey string) (*simulator, error) {
+
+	ethClient, err := ethclient.Dial(ethClientURL)
+	if err != nil {
+		return nil, fmt.Errorf("dial ethclient: %w", err)
+	}
+
+	contract, err := zkOracle.NewZKOracleContract(common.HexToAddress(contractAddress), ethClient)
+	if err != nil {
+		return nil, fmt.Errorf("new zkOracle contract: %w", err)
+	}
+
+	ecdsaPrivateKey, err := crypto.HexToECDSA(privateKey)
+	if err != nil {
+		return nil, fmt.Errorf("hex to ecdsa: %w", err)
+	}
+
+	return &simulator{
+		runs:          runs,
+		dst:           dst,
+		mode:          mode,
+		ethClient:     ethClient,
+		contract:      contract,
+		committeeSize: (zkOracle.NumAccounts - 1) * 2,
+		privateKey:    ecdsaPrivateKey,
+	}, nil
+}
+
+func (a *simulator) Simulate() error {
+	switch a.mode {
+	case OnlyContractCosts:
+		a.SimulateContracts()
+	case OnlyAggregationProof:
+		a.SimulateAggregation()
+	case OnlySlashingProof:
+		a.SimulateSlashing()
+	default:
+		return errors.New("unknown simulation mode")
+	}
+	return nil
+}
+
+func (a *simulator) SimulateContracts() {
 	var aggregationCircuit zkOracle.AggregationCircuit
 	var slashingCircuit zkOracle.SlashingCircuit
 
@@ -121,10 +177,197 @@ func (a *AggregationCircuitAnalyzer) Analyze() {
 		"replaceCosts",
 		"exitCosts",
 		"withdrawCosts",
+	}
+
+	data := [][]string{
+		headerRow,
+	}
+
+	privateKeys, err := generatePrivateKeys(a.committeeSize)
+	if err != nil {
+		panic(err)
+	}
+
+	accounts, err := createAccounts(privateKeys)
+	if err != nil {
+		panic(err)
+	}
+
+	registerCosts, err := a.RegisterAccounts(accounts)
+	if err != nil {
+		panic(err)
+	}
+
+	getBlockByNumberCosts, err := a.RequestBlockByNumber()
+	if err != nil {
+		panic(err)
+	}
+
+	state, err := zkOracle.NewState(mimc.NewMiMC(), accounts)
+	if err != nil {
+		panic(err)
+	}
+
+	a.aggregatorIndex, err = a.contract.GetAggregator(nil)
+	if err != nil {
+		panic(err)
+	}
+
+	assignment, err := a.AssignVariables(state, privateKeys)
+	if err != nil {
+		panic(err)
+	}
+
+	w, err := frontend.NewWitness(assignment, ecc.BN254)
+	if err != nil {
+		panic(err)
+	}
+
+	p, err := groth16.Prove(aggregationR1CS, aggregationPK, w)
+	if err != nil {
+		fmt.Printf("%v", err)
+		return
+	}
+
+	pw, err := w.Public()
+	if err != nil {
+		fmt.Printf("%v", err)
+		return
+	}
+
+	err = groth16.Verify(p, aggregationVK, pw)
+	if err != nil {
+		panic(err)
+	}
+
+	submitBlockCosts, err := a.SubmitBlock(p, assignment)
+	if err != nil {
+		panic(err)
+	}
+
+	slashingAssignment, err := a.AssignVariablesSlashing(state, privateKeys)
+	if err != nil {
+		panic(err)
+	}
+
+	w, err = frontend.NewWitness(slashingAssignment, ecc.BN254)
+	if err != nil {
+		panic(err)
+	}
+
+	p, err = groth16.Prove(slashingR1CS, slashingPK, w)
+	if err != nil {
+		fmt.Printf("%v", err)
+		return
+	}
+
+	pw, err = w.Public()
+	if err != nil {
+		fmt.Printf("%v", err)
+		return
+	}
+
+	err = groth16.Verify(p, slashingVK, pw)
+	if err != nil {
+		panic(err)
+	}
+
+	slashingCosts, err := a.Slash(p, slashingAssignment)
+	if err != nil {
+		panic(err)
+	}
+
+	replaceCosts, err := a.ReplaceAccount(0, state)
+	if err != nil {
+		panic(err)
+	}
+
+	exitCosts, err := a.ExitAccounts(accounts, state)
+	if err != nil {
+		panic(err)
+	}
+
+	withdrawCosts, err := a.WithDrawAccounts(accounts, state)
+	if err != nil {
+		panic(err)
+	}
+
+	data = append(data,
+		[]string{
+			strconv.Itoa(a.committeeSize),
+			strconv.Itoa(int(registerCosts)),
+			strconv.Itoa(int(getBlockByNumberCosts)),
+			strconv.Itoa(int(submitBlockCosts)),
+			strconv.Itoa(int(slashingCosts)),
+			strconv.Itoa(int(replaceCosts)),
+			strconv.Itoa(int(exitCosts)),
+			strconv.Itoa(int(withdrawCosts)),
+		})
+
+	err = a.csvWriter.WriteAll(data)
+	if err != nil {
+		fmt.Printf("%v", err)
+		return
+	}
+	a.csvWriter.Flush()
+}
+
+func (a *simulator) SimulateAggregation() {
+	var aggregationCircuit zkOracle.AggregationCircuit
+	var m1, m2 runtime.MemStats
+
+	runtime.GC()
+	runtime.ReadMemStats(&m1)
+	r1CS, err := frontend.Compile(ecc.BN254, r1cs.NewBuilder, &aggregationCircuit)
+	if err != nil {
+		fmt.Printf("%v", err)
+		return
+	}
+
+	pkFile, err := os.Open("./build/aggregation/pk")
+	if err != nil {
+		panic(err)
+	}
+
+	pk := groth16.NewProvingKey(ecc.BN254)
+	_, err = pk.ReadFrom(pkFile)
+	if err != nil {
+		panic(err)
+	}
+	runtime.ReadMemStats(&m2)
+
+	pkMemory := m2.TotalAlloc - m1.TotalAlloc
+
+	/*	vkFile, err := os.Open("./build/aggregation/vk")
+		if err != nil {
+			panic(err)
+		}
+
+		vk := groth16.NewVerifyingKey(ecc.BN254)
+		_, err = vk.ReadFrom(vkFile)
+		if err != nil {
+			panic(err)
+		}*/
+
+	f, err := os.Create(a.dst)
+	defer func(f *os.File) {
+		err := f.Close()
+		if err != nil {
+			panic(err)
+		}
+	}(f)
+
+	if err != nil {
+		panic(err)
+	}
+
+	a.csvWriter = csv.NewWriter(f)
+
+	headerRow := []string{
+		"run",
+		"accounts",
 		"provingTime",
 		"memoryUsage",
-		"provingTimeSlashing",
-		"memoryUsageSlashing",
 	}
 
 	data := [][]string{
@@ -132,22 +375,12 @@ func (a *AggregationCircuitAnalyzer) Analyze() {
 	}
 
 	for i := 0; i < a.runs; i++ {
-		privateKeys, err := GeneratePrivateKeys(zkOracle.NumAccounts)
+		privateKeys, err := generatePrivateKeys(a.committeeSize)
 		if err != nil {
 			panic(err)
 		}
 
-		accounts, err := CreateAccounts(privateKeys)
-		if err != nil {
-			panic(err)
-		}
-
-		registerCosts, err := a.RegisterAccounts(accounts)
-		if err != nil {
-			panic(err)
-		}
-
-		getBlockByNumberCosts, err := a.RequestBlockByNumber()
+		accounts, err := createAccounts(privateKeys)
 		if err != nil {
 			panic(err)
 		}
@@ -157,11 +390,10 @@ func (a *AggregationCircuitAnalyzer) Analyze() {
 			panic(err)
 		}
 
-		a.aggregatorIndex, err = a.contract.GetAggregator(nil)
-		if err != nil {
-			panic(err)
-		}
+		a.aggregatorIndex = big.NewInt(0)
 
+		runtime.GC()
+		runtime.ReadMemStats(&m1)
 		assignment, err := a.AssignVariables(state, privateKeys)
 		if err != nil {
 			panic(err)
@@ -172,108 +404,32 @@ func (a *AggregationCircuitAnalyzer) Analyze() {
 			panic(err)
 		}
 
-		stop := make(chan struct{})
-		memoryMeasurement := make(chan uint64)
-		go func() {
-			memoryMeasurement <- MemUsage(stop)
-		}()
-
 		start := time.Now()
-		p, err := groth16.Prove(aggregationR1CS, aggregationPK, w)
+		_, err = groth16.Prove(r1CS, pk, w)
 		if err != nil {
-			fmt.Printf("%v", err)
+			fmt.Printf("prove: %v", err)
 			return
 		}
-
+		runtime.ReadMemStats(&m2)
 		provingTime := time.Since(start)
-		stop <- struct{}{}
 
-		pw, err := w.Public()
+		/*pw, err := w.Public()
 		if err != nil {
 			fmt.Printf("%v", err)
 			return
 		}
 
-		err = groth16.Verify(p, aggregationVK, pw)
-		if err != nil {
-			panic(err)
-		}
-
-		submitBlockCosts, err := a.SubmitBlock(p, assignment)
-		if err != nil {
-			panic(err)
-		}
-
-		slashingAssignment, err := a.AssignVariablesSlashing(state, privateKeys)
-		if err != nil {
-			panic(err)
-		}
-
-		w, err = frontend.NewWitness(slashingAssignment, ecc.BN254)
-		if err != nil {
-			panic(err)
-		}
-
-		stop = make(chan struct{})
-		memoryMeasurementSlashing := make(chan uint64)
-		go func() {
-			memoryMeasurementSlashing <- MemUsage(stop)
-		}()
-
-		start = time.Now()
-		p, err = groth16.Prove(slashingR1CS, slashingPK, w)
-		if err != nil {
-			fmt.Printf("%v", err)
-			return
-		}
-		provingTimeSlashing := time.Since(start)
-		stop <- struct{}{}
-
-		pw, err = w.Public()
-		if err != nil {
-			fmt.Printf("%v", err)
-			return
-		}
-
-		err = groth16.Verify(p, slashingVK, pw)
-		if err != nil {
-			panic(err)
-		}
-
-		slashingCosts, err := a.Slash(p, slashingAssignment)
-		if err != nil {
-			panic(err)
-		}
-
-		replaceCosts, err := a.ReplaceAccount(0, state)
-		if err != nil {
-			panic(err)
-		}
-
-		exitCosts, err := a.ExitAccounts(accounts, state)
-		if err != nil {
-			panic(err)
-		}
-
-		withdrawCosts, err := a.WithDrawAccounts(accounts, state)
-		if err != nil {
-			panic(err)
-		}
+				err = groth16.Verify(p, vk, pw)
+				if err != nil {
+					panic(err)
+				}*/
 
 		data = append(data,
 			[]string{
-				strconv.Itoa(zkOracle.NumAccounts),
-				strconv.Itoa(int(registerCosts)),
-				strconv.Itoa(int(getBlockByNumberCosts)),
-				strconv.Itoa(int(submitBlockCosts)),
-				strconv.Itoa(int(slashingCosts)),
-				strconv.Itoa(int(replaceCosts)),
-				strconv.Itoa(int(exitCosts)),
-				strconv.Itoa(int(withdrawCosts)),
+				strconv.Itoa(i),
+				strconv.Itoa(a.committeeSize),
 				strconv.Itoa(int(provingTime.Milliseconds())),
-				strconv.Itoa(int(<-memoryMeasurement)),
-				strconv.Itoa(int(provingTimeSlashing.Milliseconds())),
-				strconv.Itoa(int(<-memoryMeasurementSlashing)),
+				strconv.Itoa(int(bToMb(m2.TotalAlloc - m1.TotalAlloc + pkMemory))),
 			})
 	}
 
@@ -285,7 +441,136 @@ func (a *AggregationCircuitAnalyzer) Analyze() {
 	a.csvWriter.Flush()
 }
 
-func (a *AggregationCircuitAnalyzer) RegisterAccounts(accounts []*zkOracle.Account) (uint64, error) {
+func (a *simulator) SimulateSlashing() {
+	var circuit zkOracle.SlashingCircuit
+	var m1, m2 runtime.MemStats
+
+	runtime.GC()
+	runtime.ReadMemStats(&m1)
+	r1CS, err := frontend.Compile(ecc.BN254, r1cs.NewBuilder, &circuit)
+	if err != nil {
+		fmt.Printf("%v", err)
+		return
+	}
+
+	pkFile, err := os.Open("./build/slashing/pk")
+	if err != nil {
+		panic(err)
+	}
+
+	pk := groth16.NewProvingKey(ecc.BN254)
+	_, err = pk.ReadFrom(pkFile)
+	if err != nil {
+		panic(err)
+	}
+	runtime.ReadMemStats(&m2)
+
+	pkMemory := m2.TotalAlloc - m1.TotalAlloc
+
+	/*	vkFile, err := os.Open("./build/slashing/vk")
+		if err != nil {
+			panic(err)
+		}
+
+		vk := groth16.NewVerifyingKey(ecc.BN254)
+		_, err = vk.ReadFrom(vkFile)
+		if err != nil {
+			panic(err)
+		}*/
+
+	f, err := os.Create(a.dst)
+	defer func(f *os.File) {
+		err := f.Close()
+		if err != nil {
+			panic(err)
+		}
+	}(f)
+
+	if err != nil {
+		panic(err)
+	}
+
+	a.csvWriter = csv.NewWriter(f)
+
+	headerRow := []string{
+		"run",
+		"accounts",
+		"provingTime",
+		"memoryUsage",
+	}
+
+	data := [][]string{
+		headerRow,
+	}
+
+	for i := 0; i < a.runs; i++ {
+		privateKeys, err := generatePrivateKeys(a.committeeSize)
+		if err != nil {
+			panic(err)
+		}
+
+		accounts, err := createAccounts(privateKeys)
+		if err != nil {
+			panic(err)
+		}
+
+		state, err := zkOracle.NewState(mimc.NewMiMC(), accounts)
+		if err != nil {
+			panic(err)
+		}
+
+		a.aggregatorIndex = big.NewInt(0)
+
+		runtime.GC()
+		runtime.ReadMemStats(&m1)
+		assignment, err := a.AssignVariablesSlashing(state, privateKeys)
+		if err != nil {
+			panic(err)
+		}
+
+		w, err := frontend.NewWitness(assignment, ecc.BN254)
+		if err != nil {
+			panic(err)
+		}
+
+		start := time.Now()
+		_, err = groth16.Prove(r1CS, pk, w)
+		if err != nil {
+			fmt.Printf("%v", err)
+			return
+		}
+		runtime.ReadMemStats(&m2)
+		provingTime := time.Since(start)
+
+		/*		pw, err := w.Public()
+				if err != nil {
+					fmt.Printf("%v", err)
+					return
+				}
+
+				err = groth16.Verify(p, vk, pw)
+				if err != nil {
+					panic(err)
+				}*/
+
+		data = append(data,
+			[]string{
+				strconv.Itoa(i),
+				strconv.Itoa(a.committeeSize),
+				strconv.Itoa(int(provingTime.Milliseconds())),
+				strconv.Itoa(int(bToMb(m2.TotalAlloc - m1.TotalAlloc + pkMemory))),
+			})
+	}
+
+	err = a.csvWriter.WriteAll(data)
+	if err != nil {
+		fmt.Printf("%v", err)
+		return
+	}
+	a.csvWriter.Flush()
+}
+
+func (a *simulator) RegisterAccounts(accounts []*zkOracle.Account) (uint64, error) {
 	chainID, err := a.ethClient.ChainID(context.Background())
 	if err != nil {
 		panic(err)
@@ -299,7 +584,7 @@ func (a *AggregationCircuitAnalyzer) RegisterAccounts(accounts []*zkOracle.Accou
 
 	var averageCost uint64
 	for _, account := range accounts {
-		tx, err := a.contract.Register(auth, *PublicKeyToZKOraclePublicKey(account.PublicKey), "localhost:25565")
+		tx, err := a.contract.Register(auth, *publicKeyToZKOraclePublicKey(account.PublicKey), "localhost:25565")
 		if err != nil {
 			return 0, fmt.Errorf("register: %v", err)
 		}
@@ -313,7 +598,7 @@ func (a *AggregationCircuitAnalyzer) RegisterAccounts(accounts []*zkOracle.Accou
 	return averageCost, nil
 }
 
-func (a *AggregationCircuitAnalyzer) RequestBlockByNumber() (uint64, error) {
+func (a *simulator) RequestBlockByNumber() (uint64, error) {
 	chainID, err := a.ethClient.ChainID(context.Background())
 	if err != nil {
 		panic(err)
@@ -339,7 +624,7 @@ func (a *AggregationCircuitAnalyzer) RequestBlockByNumber() (uint64, error) {
 	return receipt.CumulativeGasUsed, nil
 }
 
-func (a *AggregationCircuitAnalyzer) ReplaceAccount(i uint64, state *zkOracle.State) (uint64, error) {
+func (a *simulator) ReplaceAccount(i uint64, state *zkOracle.State) (uint64, error) {
 	chainID, err := a.ethClient.ChainID(context.Background())
 	if err != nil {
 		panic(err)
@@ -373,7 +658,7 @@ func (a *AggregationCircuitAnalyzer) ReplaceAccount(i uint64, state *zkOracle.St
 		panic(err)
 	}
 
-	tx, err := a.contract.Replace(auth, *PublicKeyToZKOraclePublicKey(newAccount.PublicKey), *AccountToZKOracleAccount(&account), path[:], helper[:])
+	tx, err := a.contract.Replace(auth, *publicKeyToZKOraclePublicKey(newAccount.PublicKey), *accountToZKOracleAccount(&account), path[:], helper[:])
 	if err != nil {
 		return 0, fmt.Errorf("register: %v", err)
 	}
@@ -391,7 +676,7 @@ func (a *AggregationCircuitAnalyzer) ReplaceAccount(i uint64, state *zkOracle.St
 	return receipt.CumulativeGasUsed, nil
 }
 
-func (a *AggregationCircuitAnalyzer) ExitAccounts(accounts []*zkOracle.Account, state *zkOracle.State) (uint64, error) {
+func (a *simulator) ExitAccounts(accounts []*zkOracle.Account, state *zkOracle.State) (uint64, error) {
 	chainID, err := a.ethClient.ChainID(context.Background())
 	if err != nil {
 		panic(err)
@@ -416,7 +701,7 @@ func (a *AggregationCircuitAnalyzer) ExitAccounts(accounts []*zkOracle.Account, 
 			panic(err)
 		}
 
-		tx, err := a.contract.Exit(auth, *AccountToZKOracleAccount(&account), path[:], helper[:])
+		tx, err := a.contract.Exit(auth, *accountToZKOracleAccount(&account), path[:], helper[:])
 		if err != nil {
 			return 0, fmt.Errorf("register: %v", err)
 		}
@@ -430,7 +715,7 @@ func (a *AggregationCircuitAnalyzer) ExitAccounts(accounts []*zkOracle.Account, 
 	return averageCost, nil
 }
 
-func (a *AggregationCircuitAnalyzer) WithDrawAccounts(accounts []*zkOracle.Account, state *zkOracle.State) (uint64, error) {
+func (a *simulator) WithDrawAccounts(accounts []*zkOracle.Account, state *zkOracle.State) (uint64, error) {
 	chainID, err := a.ethClient.ChainID(context.Background())
 	if err != nil {
 		panic(err)
@@ -455,7 +740,7 @@ func (a *AggregationCircuitAnalyzer) WithDrawAccounts(accounts []*zkOracle.Accou
 			panic(err)
 		}
 
-		tx, err := a.contract.Withdraw(auth, *AccountToZKOracleAccount(&account), path[:], helper[:])
+		tx, err := a.contract.Withdraw(auth, *accountToZKOracleAccount(&account), path[:], helper[:])
 		if err != nil {
 			return 0, fmt.Errorf("register: %v", err)
 		}
@@ -476,7 +761,7 @@ func (a *AggregationCircuitAnalyzer) WithDrawAccounts(accounts []*zkOracle.Accou
 	return averageCost, nil
 }
 
-func (a *AggregationCircuitAnalyzer) SubmitBlock(p groth16.Proof, assignment *zkOracle.AggregationCircuit) (uint64, error) {
+func (a *simulator) SubmitBlock(p groth16.Proof, assignment *zkOracle.AggregationCircuit) (uint64, error) {
 	proof, err := zkOracle.ProofToEthereumProof(p)
 	if err != nil {
 		panic(err)
@@ -525,7 +810,7 @@ func (a *AggregationCircuitAnalyzer) SubmitBlock(p groth16.Proof, assignment *zk
 	return receipt.CumulativeGasUsed, nil
 }
 
-func (a *AggregationCircuitAnalyzer) AssignVariables(state *zkOracle.State, privateKeys []*eddsa.PrivateKey) (*zkOracle.AggregationCircuit, error) {
+func (a *simulator) AssignVariables(state *zkOracle.State, privateKeys []*eddsa.PrivateKey) (*zkOracle.AggregationCircuit, error) {
 
 	preStateRoot, err := state.Root()
 	if err != nil {
@@ -537,7 +822,7 @@ func (a *AggregationCircuitAnalyzer) AssignVariables(state *zkOracle.State, priv
 		return nil, fmt.Errorf("assign aggregator constraints: %w", err)
 	}
 
-	validatorConstraints, validatorBits, err := a.AssignValidatorConstraints(state, privateKeys)
+	validatorConstraints, validatorBits, err := a.AssignValidatorConstraints(state, privateKeys[:zkOracle.NumAccounts])
 	if err != nil {
 		return nil, fmt.Errorf("assign validator constraints: %w", err)
 	}
@@ -558,7 +843,7 @@ func (a *AggregationCircuitAnalyzer) AssignVariables(state *zkOracle.State, priv
 	}, nil
 }
 
-func (a *AggregationCircuitAnalyzer) AssignAggregatorConstraints(state *zkOracle.State, privateKey *eddsa.PrivateKey) (*zkOracle.AggregatorConstraints, error) {
+func (a *simulator) AssignAggregatorConstraints(state *zkOracle.State, privateKey *eddsa.PrivateKey) (*zkOracle.AggregatorConstraints, error) {
 	var assignment zkOracle.AggregationCircuit
 
 	merkleRoot, proof, helper, err := state.MerkleProof(a.aggregatorIndex.Uint64())
@@ -625,11 +910,10 @@ func (a *AggregationCircuitAnalyzer) AssignAggregatorConstraints(state *zkOracle
 	}, nil
 }
 
-func (a *AggregationCircuitAnalyzer) AssignValidatorConstraints(state *zkOracle.State, privateKeys []*eddsa.PrivateKey) ([zkOracle.NumAccounts]zkOracle.ValidatorConstraints, *big.Int, error) {
+func (a *simulator) AssignValidatorConstraints(state *zkOracle.State, privateKeys []*eddsa.PrivateKey) ([zkOracle.NumAccounts]zkOracle.ValidatorConstraints, *big.Int, error) {
 	var validatorConstraints [zkOracle.NumAccounts]zkOracle.ValidatorConstraints
 	validatorBits := big.NewInt(0)
 	for i, privateKey := range privateKeys {
-
 		var pub eddsa2.PublicKey
 		var sig eddsa2.Signature
 		result := hexutils.HexToBytes("4e20b625e3020de61240b36ab7dba952e662c03214206559c03b004f08f3")
@@ -687,7 +971,7 @@ func (a *AggregationCircuitAnalyzer) AssignValidatorConstraints(state *zkOracle.
 	return validatorConstraints, validatorBits, nil
 }
 
-func (a *AggregationCircuitAnalyzer) Slash(p groth16.Proof, assignment *zkOracle.SlashingCircuit) (uint64, error) {
+func (a *simulator) Slash(p groth16.Proof, assignment *zkOracle.SlashingCircuit) (uint64, error) {
 	proof, err := zkOracle.ProofToEthereumProof(p)
 	if err != nil {
 		panic(err)
@@ -730,7 +1014,7 @@ func (a *AggregationCircuitAnalyzer) Slash(p groth16.Proof, assignment *zkOracle
 	return receipt.CumulativeGasUsed, nil
 }
 
-func (a *AggregationCircuitAnalyzer) AssignVariablesSlashing(state *zkOracle.State, privateKeys []*eddsa.PrivateKey) (*zkOracle.SlashingCircuit, error) {
+func (a *simulator) AssignVariablesSlashing(state *zkOracle.State, privateKeys []*eddsa.PrivateKey) (*zkOracle.SlashingCircuit, error) {
 
 	preStateRoot, err := state.Root()
 	if err != nil {
@@ -762,7 +1046,7 @@ func (a *AggregationCircuitAnalyzer) AssignVariablesSlashing(state *zkOracle.Sta
 	}, nil
 }
 
-func (a *AggregationCircuitAnalyzer) AssignSlasherConstraints(state *zkOracle.State, privateKey *eddsa.PrivateKey, reward *big.Int) (zkOracle.SlasherConstraints, error) {
+func (a *simulator) AssignSlasherConstraints(state *zkOracle.State, privateKey *eddsa.PrivateKey, reward *big.Int) (zkOracle.SlasherConstraints, error) {
 	var slasherConstraints zkOracle.SlasherConstraints
 
 	var pub eddsa2.PublicKey
@@ -794,7 +1078,7 @@ func (a *AggregationCircuitAnalyzer) AssignSlasherConstraints(state *zkOracle.St
 	}, nil
 }
 
-func (a *AggregationCircuitAnalyzer) AssignSlashedValidatorConstraints(state *zkOracle.State, privateKey *eddsa.PrivateKey) (zkOracle.SlashedValidatorConstraints, *big.Int, error) {
+func (a *simulator) AssignSlashedValidatorConstraints(state *zkOracle.State, privateKey *eddsa.PrivateKey) (zkOracle.SlashedValidatorConstraints, *big.Int, error) {
 	var validatorConstraints zkOracle.SlashedValidatorConstraints
 
 	var pub eddsa2.PublicKey
