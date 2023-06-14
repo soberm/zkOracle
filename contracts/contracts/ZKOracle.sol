@@ -1,13 +1,11 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.9;
 
-import "hardhat/console.sol";
 import "./MerkleTree.sol";
 import "./AggregationVerifier.sol";
 import "./SlashingVerifier.sol";
 
-contract ZKOracle {
-    MerkleTree merkleTree;
+contract ZKOracle is MerkleTree {
     AggregationVerifier aggregationVerifier;
     SlashingVerifier slashingVerifier;
 
@@ -23,6 +21,9 @@ contract ZKOracle {
     }
 
     uint256 public exitDelay = 0;
+
+    uint256 public constant AGGREGATOR_REWARD = 500000000000000;
+    uint256 public constant VALIDATOR_REWARD = 20000000000;
 
     mapping(uint256 => address) accounts;
     mapping(address => uint256) exitTimes;
@@ -55,20 +56,22 @@ contract ZKOracle {
     event Slashed(uint256 index);
 
     constructor(
-        address merkleTreeAddress,
-        address aggregationVerifierAddress,
-        address slashingVerifierAddress,
+        uint256 _levels,
         uint256 _seedX,
-        uint256 _seedY
-    ) {
-        merkleTree = MerkleTree(merkleTreeAddress);
-        aggregationVerifier = AggregationVerifier(aggregationVerifierAddress);
-        slashingVerifier = SlashingVerifier(slashingVerifierAddress);
+        uint256 _seedY,
+        address aggregationVerifierAddress,
+        address slashingVerifierAddress
+    ) MerkleTree(_levels) {
+        levels = _levels;
         seedX = _seedX;
         seedY = _seedY;
+        aggregationVerifier = AggregationVerifier(aggregationVerifierAddress);
+        slashingVerifier = SlashingVerifier(slashingVerifierAddress);
     }
 
     function getBlockByNumber(uint256 number) public payable {
+        require(msg.value >= getReward(), "value too low");
+
         requests[nextRequest] = number;
         emit BlockRequested(number, nextRequest);
 
@@ -89,10 +92,12 @@ contract ZKOracle {
     ) public {
         require(index == getAggregator(), "invalid aggregator");
         require(accounts[index] == msg.sender, "invalid index");
+        require(blocks[request] == 0, "already submitted");
+
         blocks[request] = blockHash;
 
         uint[10] memory input = [
-            merkleTree.getRoot(),
+            getRoot(),
             postStateRoot,
             uint256(blockHash),
             request,
@@ -112,7 +117,7 @@ contract ZKOracle {
         seedX = postSeedX;
         seedY = postSeedY;
 
-        merkleTree.setRoot(postStateRoot);
+        setRoot(postStateRoot);
         emit BlockSubmitted(index, validators, request);
     }
 
@@ -128,7 +133,7 @@ contract ZKOracle {
         require(blocks[request] != 0, "pending request");
 
         uint[6] memory input = [
-            merkleTree.getRoot(),
+            getRoot(),
             postStateRoot,
             uint256(blocks[request]),
             request,
@@ -138,12 +143,12 @@ contract ZKOracle {
 
         require(slashingVerifier.verifyProof(a, b, c, input), "invalid proof");
 
-        merkleTree.setRoot(postStateRoot);
+        setRoot(postStateRoot);
         emit Slashed(0);
     }
 
     function getAggregator() public view returns (uint) {
-        return seedX % 2 ** merkleTree.getLevels();
+        return seedX % 2 ** getLevels();
     }
 
     function getIPAddress(uint256 index) public view returns (string memory) {
@@ -155,7 +160,7 @@ contract ZKOracle {
         string memory ip
     ) public payable {
         Account memory account = Account(
-            merkleTree.getNextLeafIndex(),
+            getNextLeafIndex(),
             publicKey,
             msg.value
         );
@@ -165,9 +170,9 @@ contract ZKOracle {
 
         uint[] memory input = new uint[](1);
         input[0] = accountHash;
-        uint256 h = merkleTree.hash(input);
+        uint256 h = MiMC.hash(input);
 
-        merkleTree.insert(h);
+        insert(h);
 
         emit Registered(
             msg.sender,
@@ -184,7 +189,7 @@ contract ZKOracle {
         uint256[] memory helper
     ) public payable {
         require(msg.value >= toReplace.balance, "value too low");
-        require(merkleTree.verify(path, helper), "account not included");
+        require(verify(path, helper), "account not included");
         require(
             path[0] == hashAccount(toReplace),
             "leaf does not match account"
@@ -196,7 +201,7 @@ contract ZKOracle {
             msg.value
         );
 
-        merkleTree.update(hashAccount(replaced), path, helper);
+        update(hashAccount(replaced), path, helper);
         payable(accounts[toReplace.index]).transfer(toReplace.balance);
         emit Replaced(msg.sender, accounts[toReplace.index]);
         accounts[toReplace.index] = msg.sender;
@@ -209,7 +214,7 @@ contract ZKOracle {
     ) public {
         require(accounts[account.index] == msg.sender, "wrong sender address");
         require(path[0] == hashAccount(account), "leaf does not match account");
-        require(merkleTree.verify(path, helper), "account not included");
+        require(verify(path, helper), "account not included");
 
         exitTimes[msg.sender] = block.timestamp + exitDelay;
         emit Exiting(msg.sender);
@@ -223,23 +228,23 @@ contract ZKOracle {
         require(block.number < exitTimes[msg.sender], "time not passed");
         require(accounts[account.index] == msg.sender, "wrong sender address");
         require(path[0] == hashAccount(account), "leaf does not match account");
-        require(merkleTree.verify(path, helper), "account not included");
+        require(verify(path, helper), "account not included");
 
         payable(msg.sender).transfer(account.balance);
         delete accounts[account.index];
 
         Account memory empty = Account(account.index, account.pubKey, 0);
-        merkleTree.update(hashAccount(empty), path, helper);
+        update(hashAccount(empty), path, helper);
         emit Withdrawn(msg.sender);
     }
 
-    function hashAccount(Account memory account) public view returns (uint256) {
+    function hashAccount(Account memory account) public pure returns (uint256) {
         uint[] memory input = new uint[](4);
         input[0] = account.index;
         input[1] = account.pubKey.x;
         input[2] = account.pubKey.y;
         input[3] = account.balance;
-        return merkleTree.hash(input);
+        return MiMC.hash(input);
     }
 
     function getExitTime(address addr) public view returns (uint256) {
@@ -248,5 +253,10 @@ contract ZKOracle {
 
     function getSeed() public view returns (uint256, uint256) {
         return (seedX, seedY);
+    }
+
+    function getReward() public view returns (uint256) {
+        return
+            AGGREGATOR_REWARD + (getNextLeafIndex() / 2 + 1) * VALIDATOR_REWARD;
     }
 }

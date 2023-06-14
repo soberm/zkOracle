@@ -1,5 +1,5 @@
 // Copyright (c) 2018 HarryR
-// License: LGPL-3.0+
+// SPDX-License-Identifier: LGPL-3.0+
 
 //Adapted to use exponent of 5
 pragma solidity ^0.8.7;

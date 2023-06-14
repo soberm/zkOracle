@@ -2,22 +2,20 @@
 pragma solidity ^0.8.9;
 
 import "./MiMC.sol";
-import "hardhat/console.sol";
 
 contract MerkleTree {
-    uint256 ZERO_VALUE =
+    uint256 public constant ZERO_VALUE =
         4555114089170143013007615382799372902997177870479602349537353593038812875418;
 
-    uint256 levels;
-    uint256 public root;
-    mapping(uint256 => uint256) public filledSubtrees;
-    uint256 public nextIndex;
+    uint256 public levels;
 
-    event Inserted(uint256 index);
+    uint256 private root;
+    uint256 private nextIndex;
+    mapping(uint256 => uint256) private filledSubtrees;
 
     constructor(uint256 _levels) {
         require(_levels > 0, "_levels should be greater than zero");
-        require(_levels < 8, "_levels should be less than 8");
+        require(_levels < 9, "_levels should be less than 8");
 
         levels = _levels;
 
@@ -28,10 +26,6 @@ contract MerkleTree {
         root = zeros(levels - 1);
     }
 
-    function hash(uint256[] memory data) public pure returns (uint256) {
-        return MiMC.hash(data);
-    }
-
     function hashLeftRight(
         uint256 left,
         uint256 right
@@ -39,14 +33,13 @@ contract MerkleTree {
         uint[] memory input = new uint[](2);
         input[0] = left;
         input[1] = right;
-        return hash(input);
+        return MiMC.hash(input);
     }
 
-    function insert(uint256 leaf) public {
+    function insert(uint256 leaf) internal {
         require(nextIndex != 2 ** levels, "tree is full");
         uint256 left;
         uint256 right;
-        uint256 leafIndex = nextIndex;
         uint256 currentIndex = nextIndex;
         uint256 currentHash = leaf;
 
@@ -66,14 +59,13 @@ contract MerkleTree {
         root = currentHash;
 
         nextIndex += 1;
-        emit Inserted(leafIndex);
     }
 
     function update(
         uint256 leaf,
         uint256[] memory path,
         uint256[] memory helper
-    ) public {
+    ) internal {
         require(nextIndex == 2 ** levels, "tree not full");
         require(verify(path, helper), "leaf to update not included");
         path[0] = leaf;
@@ -86,7 +78,7 @@ contract MerkleTree {
     ) public view returns (bool) {
         uint[] memory input = new uint[](1);
         input[0] = path[0];
-        uint256 computedHash = hash(input);
+        uint256 computedHash = MiMC.hash(input);
         for (uint256 i = 1; i < path.length; i++) {
             if (helper[i - 1] == 1) {
                 computedHash = hashLeftRight(computedHash, path[i]);
@@ -103,7 +95,7 @@ contract MerkleTree {
     ) public pure returns (uint256) {
         uint[] memory input = new uint[](1);
         input[0] = path[0];
-        uint256 computedHash = hash(input);
+        uint256 computedHash = MiMC.hash(input);
         for (uint256 i = 1; i < path.length; i++) {
             if (helper[i - 1] == 1) {
                 computedHash = hashLeftRight(computedHash, path[i]);
@@ -118,7 +110,7 @@ contract MerkleTree {
         return root;
     }
 
-    function setRoot(uint256 _root) public {
+    function setRoot(uint256 _root) internal {
         root = _root;
     }
 
