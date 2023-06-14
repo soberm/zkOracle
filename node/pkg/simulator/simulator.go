@@ -653,7 +653,7 @@ func (a *simulator) ReplaceAccount(i uint64, state *zkOracle.State) (uint64, err
 		panic(err)
 	}
 
-	_, path, helper, err := state.MerkleProofTest(account.Index.Uint64())
+	_, path, helper, err := state.MerkleProofBytes(account.Index.Uint64())
 	if err != nil {
 		panic(err)
 	}
@@ -696,7 +696,7 @@ func (a *simulator) ExitAccounts(accounts []*zkOracle.Account, state *zkOracle.S
 			panic(err)
 		}
 
-		_, path, helper, err := state.MerkleProofTest(account.Index.Uint64())
+		_, path, helper, err := state.MerkleProofBytes(account.Index.Uint64())
 		if err != nil {
 			panic(err)
 		}
@@ -735,7 +735,7 @@ func (a *simulator) WithDrawAccounts(accounts []*zkOracle.Account, state *zkOrac
 			panic(err)
 		}
 
-		_, path, helper, err := state.MerkleProofTest(account.Index.Uint64())
+		_, path, helper, err := state.MerkleProofBytes(account.Index.Uint64())
 		if err != nil {
 			panic(err)
 		}

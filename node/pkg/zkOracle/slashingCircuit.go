@@ -60,6 +60,7 @@ func (c *SlashingCircuit) Define(api frontend.API) error {
 	hFunc.Reset()
 	merkle.VerifyProof(api, hFunc, c.PreStateRoot, c.Validator.MerkleProof[:], c.Validator.MerkleProofHelper[:])
 
+	//Create the message
 	hFunc.Reset()
 	hFunc.Write(c.Validator.Index)
 	hFunc.Write(c.Request)

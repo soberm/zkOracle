@@ -21,8 +21,8 @@ type State struct {
 
 func NewState(hFunc hash.Hash, accounts []*Account) (*State, error) {
 
-	data := make([]byte, accountSize*NumAccounts)
-	hData := make([]byte, hFunc.Size()*NumAccounts)
+	data := make([]byte, accountSize*len(accounts))
+	hData := make([]byte, hFunc.Size()*len(accounts))
 
 	for i, account := range accounts {
 
@@ -121,7 +121,7 @@ func (s *State) MerkleProof(i uint64) ([]byte, [Depth]frontend.Variable, [Depth 
 	return root, path, helper, nil
 }
 
-func (s *State) MerkleProofTest(i uint64) ([]byte, [Depth]*big.Int, [Depth - 1]*big.Int, error) {
+func (s *State) MerkleProofBytes(i uint64) ([]byte, [Depth]*big.Int, [Depth - 1]*big.Int, error) {
 	s.RLock()
 	defer s.RUnlock()
 

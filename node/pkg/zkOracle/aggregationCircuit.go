@@ -11,8 +11,8 @@ import (
 )
 
 const (
-	NumAccounts      = 4
-	Depth            = 3
+	NumAccounts      = 5
+	Depth            = 4
 	AggregatorReward = 500000000000000
 	ValidatorReward  = 20000000000
 )
@@ -118,6 +118,7 @@ func (c *AggregationCircuit) Define(api frontend.API) error {
 		hFunc.Reset()
 		merkle.VerifyProof(api, hFunc, intermediateRoot, validator.MerkleProof[:], validator.MerkleProofHelper[:])
 
+		//Create the message
 		hFunc.Reset()
 		hFunc.Write(validator.Index)
 		hFunc.Write(c.Request)
