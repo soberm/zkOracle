@@ -4,6 +4,7 @@ pragma solidity ^0.8.9;
 import "./MerkleTree.sol";
 import "./AggregationVerifier.sol";
 import "./SlashingVerifier.sol";
+import "hardhat/console.sol";
 
 contract ZKOracle is MerkleTree {
     AggregationVerifier aggregationVerifier;
