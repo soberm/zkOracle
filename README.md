@@ -1,14 +1,14 @@
 # Cross-Chain Oracle Using an Off-Chain Aggregation Mechanism Based on zk-SNARKs
 
-This project contains the source code for the paper "Cross-Chain Oracle Using an Off-Chain Aggregation Mechanism Based on zk-SNARKs." We provide a
-prototypical implementation of the smart contracts and the Oracle node.
+This project contains the source code for the paper "Cross-Blockchain Communication Using Oracles With an
+Off-Chain Aggregation Mechanism Based on zk-SNARKs." We provide a prototypical implementation of the smart contracts and the Oracle node.
 
 ## Prerequisites
 
 You need to have the following software installed:
 
 * [Golang](https://golang.org/doc/install) (version 1.19)
-* [Node.js](https://nodejs.org/) (version >= 21.6.1)
+* [Node.js](https://nodejs.org/) (version >= 19.4.0)
 * [Hardhat](https://hardhat.org/) (version >= 2.11.1)
 * [Solidity](https://docs.soliditylang.org/en/latest/installing-solidity.html) (^0.8.0)
 
